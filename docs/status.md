@@ -20,7 +20,9 @@ node --test — all passing.
 
 In progress
 
-Nothing yet.
+Onboarding reworked (D-014): welcome screen with two paths — "Connect workspace…"
+and "Create new desk…" (app creates the folder and initializes the structure).
+Commit a75b5d5; decisions.md updated.
 
 Next
 

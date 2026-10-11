@@ -46,3 +46,14 @@ D-010
 
 Decision: primary content-agent harness is OpenClaw + GLM (user migrated from Claude Code).Conventions and examples target OpenClaw first; the format itself stays harness-agnostic(plain files + JSON lines).
 Consequences: docs/workspace-conventions.md ships OpenClaw-ready; other harnesses work as-is.
+D-014
+
+Context: most new users will not have a pre-arranged workspace folder; asking them
+to build inbox/stacks/.desk by hand is a dead end at first launch.
+Decision: welcome screen offers two paths — "Connect workspace…" (existing folder)
+and "Create new desk…" (name + parent folder; the app creates the subfolder and
+initializes the full structure). Folder creation goes through the same
+showDirectoryPicker (FSA cannot create folders outside a picked directory);
+creation over an existing non-empty folder is refused.
+Consequences: empty-folder initialization now happens automatically on the create
+path; the manual "Initialize workspace" banner stays for the connect path.
