@@ -6,17 +6,36 @@ Done
 
 Product concept, full docs set, decisions D-001 … D-010.
 Spec v1.0 frozen after user confirmations (platform, slides, review depth, due syntax, name).
+docs/plan.md added — backlog detail grouped into waves (M1–M4 milestones).
+R-01 done — workspace connection via File System Access API (commit fc8fa9f):
+picker, IndexedDB handle persistence, restore/re-grant on revisit, disconnect,
+uniform storage-adapter interface, structure view (stacks/inbox cards),
+dev server script scripts/serve.sh.
+R-02 done — workspace conventions and item model (commit 18bd378):
+layout scan/validate + one-click initialization, front-matter subset
+parser/serializer, @due(YYYY-MM-DD) parser (isolated module, D-008),
+checkbox tasks in any item type (D-013), workspace model ops
+(createStack/createItem/moveItem/config), memory adapter, 11 unit tests via
+node --test — all passing.
+
 In progress
 
-Nothing yet. Handoff to the build agent pending.
+Nothing yet.
+
 Next
 
-User: create the repo, commit docs, set up OpenClaw in the repo folder.
-Build agent: implement R-01, then R-02 (workspace connection + conventions are the foundation).
-User: deliver the visual direction spec before R-17 can be unblocked.
+Build agent: R-03 desk view polish on live data, then R-04 stack CRUD + move items
+(Wave 1 continues per docs/plan.md).
+User (optional): push to origin when ready; run `./scripts/serve.sh` and open
+http://localhost:8171 in Chrome/Edge to try the flow.
+
 Blocked
 
 R-17 (final visual theme) — waiting on the user's visual spec.
+
 Known issues
 
-None (no code yet).
+- Browsers without the File System Access API get an explanatory screen; the
+  browser-storage fallback adapter is planned with Wave 1 UI work.
+- Stack delete (R-04) will permanently delete files (FSA has no OS-trash API) —
+  confirm semantics with the user before implementing (see docs/plan.md open questions).
