@@ -7,6 +7,13 @@ export const INBOX = 'inbox';
 export const STACKS_DIR = 'stacks';
 export const DESK_DIR = '.desk';
 
+// Folder name for a newly created desk (D-014). OS-invalid characters are
+// replaced; case and spaces are preserved.
+export function sanitizeDeskFolderName(name) {
+  const cleaned = name.replace(/[/\\:\u0000-\u001f]/g, '-').replace(/\s+/g, ' ').trim();
+  return cleaned || 'My desk';
+}
+
 export function scanReport(entries) {
   const names = new Set(entries.filter((e) => e.kind === 'directory').map((e) => e.name));
   const issues = [];

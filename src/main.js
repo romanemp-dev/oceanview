@@ -1,6 +1,6 @@
 // App state + rendering (R-01).
-import { isSupported, pickWorkspace, saveHandle, loadSavedHandle, forgetHandle, permissionState, requestPermission, fsAccessAdapter } from './core/fsaccess.js';
-import { createWorkspaceModel } from './core/workspace.js';
+import { isSupported, pickWorkspace, saveHandle, loadSavedHandle, forgetHandle, permissionState, requestPermission, fsAccessAdapter, dirHasEntries } from './core/fsaccess.js';
+import { createWorkspaceModel, sanitizeDeskFolderName } from './core/workspace.js';
 
 const els = {
   status: document.getElementById('ws-status'),
@@ -22,23 +22,20 @@ function renderNotConnected() {
   setStatus('No workspace connected');
   hide(els.disconnect);
   els.desk.innerHTML = '';
-  const section = document.createElement('section');
-  section.className = 'placeholder';
   if (!isSupported()) {
+    const section = document.createElement('section');
+    section.className = 'placeholder';
     section.innerHTML = `
       <h1>Oceanview needs Chrome or Edge</h1>
       <p>This browser does not support the File System Access API, which the app
-      uses to work with your local folder. Open Oceanview in desktop Chrome/Edge,
-      or serve the app and use the browser-storage fallback (coming in R-02).</p>`;
+      uses to work with your local workspace folder. Please open Oceanview in
+      desktop Chrome or Edge.</p>`;
+    els.desk.appendChild(section);
     show(els.connect);
     els.connect.disabled = true;
     return;
   }
-  section.innerHTML = `
-    <h1>Your desk is empty</h1>
-    <p>Connect a local folder to use as your workspace. Your files stay on your machine.</p>`;
-  show(els.connect);
-  els.connect.disabled = false;
+  els.desk.appendChild(buildWelcome());
 }
 
 function el(tag, className, text) {
@@ -48,9 +45,88 @@ function el(tag, className, text) {
   return node;
 }
 
+// Two-path onboarding (D-014): connect an existing folder or create a new desk.
+function buildWelcome() {
+  const hero = el('div', 'hero');
+  hero.appendChild(el('h1', null, 'Welcome to Oceanview'));
+  hero.appendChild(el('p', null, 'A local-first desk for your notes, tasks and lists. Choose where it lives on your machine — your files never leave it.'));
+
+  const options = el('div', 'options');
+
+  const connectCard = el('button', 'option-card');
+  connectCard.type = 'button';
+  connectCard.innerHTML =
+    '<span class="option-title">Connect workspace…</span>' +
+    '<span class="option-desc">Already keep notes in a folder? Pick it — Oceanview will show its stacks and items.</span>';
+  connectCard.addEventListener('click', onConnect);
+
+  const createCard = el('button', 'option-card');
+  createCard.type = 'button';
+  createCard.innerHTML =
+    '<span class="option-title">Create new desk…</span>' +
+    '<span class="option-desc">Starting fresh? Name your desk, pick a location, and the workspace structure is set up for you.</span>';
+
+  const form = buildCreateForm();
+  createCard.addEventListener('click', () => {
+    form.classList.toggle('hidden');
+    if (!form.classList.contains('hidden')) form.querySelector('input')?.focus();
+  });
+
+  options.append(connectCard, createCard, form);
+  hero.appendChild(options);
+  return hero;
+}
+
+function buildCreateForm() {
+  const wrap = el('div', 'option-form hidden');
+  const label = el('label', null, 'Desk name');
+  label.setAttribute('for', 'desk-name');
+  const input = el('input', 'text');
+  input.id = 'desk-name';
+  input.type = 'text';
+  input.placeholder = 'e.g. Work desk';
+  input.maxLength = 80;
+  const row = el('div', 'field-row');
+  const createBtn = el('button', 'btn primary', 'Choose location & create');
+  const err = el('div', 'error-text');
+  createBtn.addEventListener('click', () => onCreateDesk(input, err, createBtn));
+  input.addEventListener('keydown', (e) => { if (e.key === 'Enter') createBtn.click(); });
+  row.append(input, createBtn);
+  wrap.append(label, row, err);
+  return wrap;
+}
+
+async function onCreateDesk(input, err, btn) {
+  err.textContent = '';
+  const folderName = sanitizeDeskFolderName(input.value || 'My desk');
+  btn.disabled = true;
+  try {
+    const parent = await pickWorkspace();
+    try {
+      const existing = await parent.getDirectoryHandle(folderName);
+      if (await dirHasEntries(existing)) {
+        err.textContent = `“${folderName}” already exists in that location and is not empty. Pick another location or name.`;
+        return;
+      }
+    } catch {
+      // Folder does not exist — proceed with creation.
+    }
+    const deskHandle = await parent.getDirectoryHandle(folderName, { create: true });
+    await connectFlow(deskHandle);
+    await ws.initialize();
+    await refresh();
+  } catch (e) {
+    if (e?.name !== 'AbortError') {
+      console.error(e);
+      err.textContent = e?.message ?? String(e);
+    }
+  } finally {
+    btn.disabled = false;
+  }
+}
+
 function badge(text, cls = 'badge') {
-  const b = el('span', cls, text);
-  return b;
+  return el('span', cls, text);
 }
 
 function renderDesk(desk) {

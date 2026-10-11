@@ -122,3 +122,51 @@ body {
 .placeholder h1 { font-weight: 600; }
 
 .notice { color: var(--muted); font-size: 14px; }
+
+/* Welcome / onboarding (D-014) */
+.hero { max-width: 640px; margin: 60px auto 0; text-align: center; }
+.hero h1 { font-weight: 650; margin-bottom: 8px; }
+.hero > p { color: var(--muted); margin-bottom: 32px; }
+
+.options { display: grid; gap: 14px; text-align: left; }
+
+.option-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  background: var(--surface);
+  border: 1px solid var(--surface-2);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 18px 20px;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.15s ease, transform 0.15s ease;
+}
+.option-card:hover { border-color: var(--accent); transform: translateY(-1px); }
+
+.option-title { font-weight: 600; font-size: 15px; }
+.option-desc { color: var(--muted); font-size: 13.5px; }
+
+.option-form {
+  background: var(--surface);
+  border: 1px solid var(--surface-2);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 16px 20px;
+}
+.option-form label { display: block; font-size: 13px; color: var(--muted); margin-bottom: 8px; }
+
+.field-row { display: flex; gap: 10px; }
+.field-row input.text {
+  flex: 1;
+  border: 1px solid var(--surface-2);
+  border-radius: 8px;
+  padding: 8px 12px;
+  font: inherit;
+  font-size: 14px;
+}
+.field-row input.text:focus { outline: 2px solid var(--accent-soft); border-color: var(--accent); }
+
+.error-text { color: var(--danger); font-size: 13px; margin-top: 8px; min-height: 1em; }

@@ -3,7 +3,7 @@
 // interface is implemented by the in-memory adapter used in tests.
 import { idbGet, idbSet, idbDelete } from './idb.js';
 
-const HANDLE_KEY = 'workspace-handle';
+const HANDLE_KEY = 'oceanview.workspace.handle';
 
 export function isSupported() {
   return typeof window !== 'undefined' && typeof window.showDirectoryPicker === 'function';
@@ -12,6 +12,11 @@ export function isSupported() {
 // Must be called from a user gesture.
 export async function pickWorkspace() {
   return window.showDirectoryPicker({ id: 'oceanview-workspace', mode: 'readwrite' });
+}
+
+export async function dirHasEntries(dirHandle) {
+  for await (const _ of dirHandle.values()) return true; // eslint-disable-line no-unused-vars
+  return false;
 }
 
 export async function saveHandle(handle) {

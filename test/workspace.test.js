@@ -67,6 +67,14 @@ test('scanReport: flags missing convention folders', () => {
   assert.equal(ok.issues.length, 0);
 });
 
+test('sanitizeDeskFolderName: strips OS-invalid characters', async () => {
+  const { sanitizeDeskFolderName } = await import('../src/core/workspace.js');
+  assert.equal(sanitizeDeskFolderName('Work desk'), 'Work desk');
+  assert.equal(sanitizeDeskFolderName('a/b:c'), 'a-b-c');
+  assert.equal(sanitizeDeskFolderName('   '), 'My desk');
+  assert.equal(sanitizeDeskFolderName(''), 'My desk');
+});
+
 test('workspace: initialize then read desk', async () => {
   const adapter = memoryAdapter();
   const ws = createWorkspaceModel(adapter);
