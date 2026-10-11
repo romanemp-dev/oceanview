@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Oceanview</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">Oceanview</div>
+    <div class="toolbar">
+      <span id="ws-status" class="ws-status">No workspace connected</span>
+      <button id="btn-connect" class="btn primary hidden">Connect workspace…</button>
+      <button id="btn-restore" class="btn hidden">Restore access…</button>
+      <button id="btn-disconnect" class="btn subtle hidden">Disconnect</button>
+    </div>
+  </header>
+  <main id="desk" class="desk">
+    <section class="placeholder">
+      <h1>Your desk is empty</h1>
+      <p>Connect a local folder to use as your workspace.</p>
+    </section>
+  </main>
+  <script type="module" src="src/main.js"></script>
+</body>
+</html>
