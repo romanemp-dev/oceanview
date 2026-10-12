@@ -1,5 +1,6 @@
 // Desk view: stack cards with CRUD, inbox card, item rendering (R-03/R-04).
 import { INBOX, STACKS_DIR } from '../core/workspace.js';
+import { renderTodayTray } from './today.js';
 
 function el(tag, className, text) {
   const node = document.createElement(tag);
@@ -25,6 +26,7 @@ function actionButton(text, title, onClick, cls = 'btn subtle small') {
 
 export function renderDeskView({ desk, handlers }) {
   const root = el('div');
+  root.appendChild(renderTodayTray({ desk, handlers }));
   const grid = el('div', 'grid');
 
   // Inbox card.

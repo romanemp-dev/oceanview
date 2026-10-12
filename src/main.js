@@ -3,6 +3,7 @@ import { isSupported, pickWorkspace, saveHandle, loadSavedHandle, forgetHandle, 
 import { createWorkspaceModel, sanitizeDeskFolderName, INBOX, STACKS_DIR } from './core/workspace.js';
 import { renderDeskView, promptName } from './ui/desk.js';
 import { renderItemView } from './ui/item.js';
+import { setupQuickCapture, captureItemText } from './ui/capture.js';
 
 const els = {
   status: document.getElementById('ws-status'),
@@ -184,6 +185,12 @@ async function renderItem() {
           await ws.writeItem(route.dir, route.fileName, item.meta, body);
           refresh();
         },
+        setTaskDue: async (index, dateIso) => {
+          const body = setTaskDue(item.body, index, dateIso);
+          item.body = body;
+          await ws.writeItem(route.dir, route.fileName, item.meta, body);
+          refresh();
+        },
         save: async (title, body) => {
           item.meta.title = title || item.meta.title;
           await ws.writeItem(route.dir, route.fileName, item.meta, body);
@@ -326,6 +333,13 @@ async function connectFlow(handle) {
   show(els.disconnect);
   hide(els.connect);
   hide(els.restore);
+  setupQuickCapture({
+    onCapture: async (line1, line2) => {
+      const { meta, body } = captureItemText(line1, line2);
+      await ws.writeItem(INBOX, `${Date.now()}-capture.md`, meta, body);
+      refresh();
+    },
+  });
   await refresh();
 }
 
