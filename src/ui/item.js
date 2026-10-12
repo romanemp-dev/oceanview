@@ -1,6 +1,7 @@
 // Item view: viewer + markdown editor with preview (R-06).
 import { renderMarkdown } from '../core/markdown.js';
-import { toggleTaskLine } from '../core/tasks.js';
+import { toggleTaskLine, setTaskDue } from '../core/tasks.js';
+import { todayIso } from '../core/frontmatter.js';
 
 function el(tag, className, text) {
   const node = document.createElement(tag);
@@ -62,11 +63,26 @@ function buildViewer(item, handlers) {
   const title = el('h2', 'item-title', item.meta.title ?? item.fileName);
   wrap.appendChild(title);
   const body = el('div', 'markdown-body');
-  body.innerHTML = renderMarkdown(item.body);
+  body.innerHTML = renderMarkdown(item.body, todayIso());
+  // Due chips become date inputs: set/clear the date inline (R-07).
+  for (const chip of body.querySelectorAll('.due-chip[data-task-due]')) {
+    const idx = Number(chip.dataset.taskDue);
+    const input = document.createElement('input');
+    input.type = 'date';
+    input.className = chip.className;
+    input.dataset.taskDate = String(idx);
+    input.value = item.tasks[idx]?.due ?? '';
+    chip.replaceWith(input);
+  }
   body.addEventListener('change', (e) => {
     const cb = e.target.closest('input[type="checkbox"][data-task]');
     if (!cb) return;
     handlers.toggleTask(Number(cb.dataset.task), cb.checked);
+  });
+  body.addEventListener('change', (e) => {
+    const dateInput = e.target.closest('input[type="date"][data-task-date]');
+    if (!dateInput) return;
+    handlers.setTaskDue(Number(dateInput.dataset.taskDate), dateInput.value || null);
   });
   wrap.appendChild(body);
   return wrap;

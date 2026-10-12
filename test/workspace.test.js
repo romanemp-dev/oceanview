@@ -4,6 +4,7 @@ import { parseFrontMatter, serializeFrontMatter, todayIso } from '../src/core/fr
 import { parseDue, stripDue, setDue, parseTasks, isOverdue, isDueToday } from '../src/core/tasks.js';
 import { memoryAdapter } from '../src/core/memory-adapter.js';
 import { createWorkspaceModel, scanReport, INBOX, STACKS_DIR } from '../src/core/workspace.js';
+import { setTaskDue } from '../src/core/tasks.js';
 
 test('front-matter: parse and serialize round-trip', () => {
   const text = '---\ntype: note\ntitle: Flights to Osaka\ncreated: 2026-01-01\nupdated: 2026-01-02\ntags: [travel, japan]\n---\n\nBody text.\n';
@@ -36,6 +37,13 @@ test('@due: parse, strip, set, clear', () => {
   assert.equal(setDue(line, '2026-07-01'), '- [ ] buy flights @due(2026-07-01)');
   assert.equal(setDue(line, null), '- [ ] buy flights');
   assert.equal(parseDue('- [ ] no date'), null);
+});
+
+test('setTaskDue: set, change and clear by task index', () => {
+  const body = '- [ ] alpha\n- [ ] beta @due(2026-01-01)\n- [x] gamma @due(2026-02-02)\n';
+  assert.equal(setTaskDue(body, 0, '2026-03-15'), '- [ ] alpha @due(2026-03-15)\n- [ ] beta @due(2026-01-01)\n- [x] gamma @due(2026-02-02)\n');
+  assert.equal(setTaskDue(body, 1, '2026-05-05'), '- [ ] alpha\n- [ ] beta @due(2026-05-05)\n- [x] gamma @due(2026-02-02)\n');
+  assert.equal(setTaskDue(body, 2, null), '- [ ] alpha\n- [ ] beta @due(2026-01-01)\n- [x] gamma\n');
 });
 
 test('tasks: parse checkboxes with due dates', () => {

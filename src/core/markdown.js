@@ -1,6 +1,7 @@
 // Minimal dependency-free markdown renderer (R-06).
 // Security model: everything is HTML-escaped first; links are restricted to
 // http/https/mailto; no raw HTML ever passes through.
+import { parseDue, stripDue } from './tasks.js';
 
 function escapeHtml(s) {
   return s
@@ -26,7 +27,7 @@ function inline(s) {
     .replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, (_m, label, url) => `<a href="${safeHref(url)}" rel="noopener noreferrer">${label}</a>`);
 }
 
-export function renderMarkdown(src) {
+export function renderMarkdown(src, today) {
   const codeBlocks = [];
   let text = src.replace(/```([^\n`]*)\n([\s\S]*?)```/g, (_m, _lang, code) => {
     const i = codeBlocks.length;
@@ -75,8 +76,19 @@ export function renderMarkdown(src) {
       flushPara();
       openList('ul');
       const done = task[1] !== ' ';
+      const due = parseDue(task[2]);
+      const textBody = due ? stripDue(task[2]) : task[2];
+      let chip = '';
+      if (due) {
+        let cls = 'due-chip';
+        if (today) {
+          if (due < today) cls += ' overdue';
+          else if (due === today) cls += ' today';
+        }
+        chip = ` <span class="${cls}" data-task-due="${taskIndex}">${due}</span>`;
+      }
       out.push(
-        `<li class="task"><input type="checkbox" data-task="${taskIndex}"${done ? ' checked' : ''}> ${inline(task[2])}</li>`,
+        `<li class="task"><input type="checkbox" data-task="${taskIndex}"${done ? ' checked' : ''}> ${inline(textBody)}${chip}</li>`,
       );
       taskIndex++;
       continue;

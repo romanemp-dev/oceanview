@@ -52,3 +52,19 @@ export function toggleTaskLine(body, index, done) {
   }
   return lines.join('\n');
 }
+
+// Set or clear the @due date on the nth task line (index matches parseTasks).
+export function setTaskDue(body, index, dateIso) {
+  let seen = -1;
+  const lines = body.split('\n');
+  for (let i = 0; i < lines.length; i++) {
+    const m = lines[i].match(/^(\s*[-*]\s+\[( |x|X)\]\s+)(.*)$/);
+    if (!m) continue;
+    seen++;
+    if (seen === index) {
+      lines[i] = m[1] + setDue(m[3], dateIso);
+      break;
+    }
+  }
+  return lines.join('\n');
+}

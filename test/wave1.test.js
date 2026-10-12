@@ -36,6 +36,14 @@ test('markdown: task checkboxes carry data-task index', () => {
   assert.ok(out.includes('checked'));
 });
 
+test('markdown: due chips with overdue/today classes', () => {
+  const out = renderMarkdown('- [ ] past @due(2000-01-01)\n- [ ] now @due(2026-06-15)\n- [ ] plain', '2026-06-15');
+  assert.ok(out.includes('due-chip overdue')); 
+  assert.ok(out.match(/data-task-due="1"[^>]*>2026-06-15/));
+  assert.ok(out.includes('due-chip today'));
+  assert.equal((out.match(/data-task-due/g) ?? []).length, 2);
+});
+
 test('toggleTaskLine: check and uncheck the right line', () => {
   const body = 'intro\n\n- [ ] a\n- [ ] b\n- [x] c\n';
   assert.equal(toggleTaskLine(body, 1, true), 'intro\n\n- [ ] a\n- [x] b\n- [x] c\n');
