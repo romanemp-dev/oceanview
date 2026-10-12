@@ -22,6 +22,15 @@ In progress
 
 Nothing yet.
 
+R-09 done — smart placement (commit 0d448e4): deterministic scoring (shared
+terms, stack-name tokens, tags; recent-stack fallback), one-click confirm
+buttons with reasons on inbox items.
+R-12 done — agent activity (commit f61f74f): activity log reader with
+malformed-line tolerance, per-stack change markers, review view with
+mark-reviewed state; docs/workspace-conventions.md shipped (OpenClaw-ready).
+R-13 done — agent assignment display: agents from .desk/config.json shown as
+chips on stack cards; config.json is the manual editor in v1 (per spec).
+
 R-07 done — due dates (commit ae59a0d): setTaskDue set/change/clear @due on the
 nth task line; due chips with today/overdue styling; chips are date inputs in
 the reader, changes persist to the file.
@@ -43,12 +52,12 @@ desk<->item routing.
 
 Next
 
-Build agent: Wave 3 per docs/plan.md — R-09 smart placement (deterministic
-heuristics, one-click confirm), then R-12 agent activity + workspace
-conventions doc, R-13 agent assignment display.
-User (optional): push to origin when ready; run `./scripts/serve.sh` and open
-http://localhost:8171 in Chrome/Edge to try the flow (restart the server if it
-was stopped).
+Build agent: M3 milestone reached (R-09+R-12+R-13). Remaining: R-05 P1 part
+(list, slides types), Wave 4 polish — R-14 search, R-15 slides preview,
+R-18 PWA; R-17 theme still blocked on the user's visual spec.
+User (optional): point an OpenClaw agent at the workspace using
+docs/workspace-conventions.md and try the S3/S4 scenarios (delegate → review).
+Push to origin when ready.
 
 Blocked
 
