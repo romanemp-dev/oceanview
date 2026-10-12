@@ -1,5 +1,6 @@
 // Desk view: stack cards with CRUD, inbox card, item rendering (R-03/R-04).
 import { INBOX, STACKS_DIR } from '../core/workspace.js';
+import { suggestStacks } from '../core/placement.js';
 import { renderTodayTray } from './today.js';
 
 function el(tag, className, text) {
@@ -36,8 +37,23 @@ export function renderDeskView({ desk, handlers }) {
   inbox.appendChild(inboxTitle);
   inbox.appendChild(el('div', 'count', `${desk.inboxItems.length} unsorted item(s)`));
   for (const item of desk.inboxItems.slice(0, 5)) {
-    const line = el('div', 'item-line clickable', item.meta.title ?? item.fileName);
-    line.addEventListener('click', () => handlers.openItem(INBOX, item.fileName));
+    const line = el('div', 'inbox-entry');
+    const title = el('div', 'item-line clickable', item.meta.title ?? item.fileName);
+    title.addEventListener('click', () => handlers.openItem(INBOX, item.fileName));
+    line.appendChild(title);
+    const suggestions = suggestStacks(item, desk);
+    if (suggestions.length) {
+      const row = el('div', 'suggest-row');
+      row.appendChild(el('span', 'suggest-label', '→'));
+      for (const s of suggestions) {
+        const btn = el('button', 'btn small suggest', s.stack);
+        btn.type = 'button';
+        btn.title = s.reason ? `Because: ${s.reason}` : 'Suggested';
+        btn.addEventListener('click', () => handlers.moveItemTo(INBOX, item.fileName, `stacks/${s.stack}`));
+        row.appendChild(btn);
+      }
+      line.appendChild(row);
+    }
     inbox.appendChild(line);
   }
   if (desk.inboxItems.length > 5) {
@@ -52,6 +68,17 @@ export function renderDeskView({ desk, handlers }) {
     title.appendChild(el('span', 'stack-name', stack.name));
     if (stack.hasOverdue) title.appendChild(badge('overdue', 'pill overdue'));
     else if (stack.hasDueToday) title.appendChild(badge('due today', 'pill today'));
+    if (stack.agentChanges) {
+      const marker = el('button', 'agent-marker', `⬡ ${stack.agentChanges} agent change${stack.agentChanges > 1 ? 's' : ''}`);
+      marker.type = 'button';
+      marker.title = 'Review agent activity';
+      marker.addEventListener('click', () => handlers.reviewStack(stack.name));
+      title.appendChild(marker);
+    }
+    const agents = stack.agents ?? [];
+    if (agents.length) {
+      title.appendChild(el('span', 'agent-chip', `⚑ ${agents.join(', ')}`));
+    }
     title.appendChild(actionButton('✎', `Rename stack “${stack.name}”`, () => handlers.renameStack(stack.name)));
     title.appendChild(actionButton('🗑', `Delete stack “${stack.name}” (moves files to .desk/trash)`, () => handlers.deleteStack(stack.name)));
     card.appendChild(title);

@@ -4,6 +4,8 @@ import { createWorkspaceModel, sanitizeDeskFolderName, INBOX, STACKS_DIR } from 
 import { renderDeskView, promptName } from './ui/desk.js';
 import { renderItemView } from './ui/item.js';
 import { setupQuickCapture, captureItemText } from './ui/capture.js';
+import { renderReviewView } from './ui/review.js';
+import { readActivityEntries } from './core/activity.js';
 
 const els = {
   status: document.getElementById('ws-status'),
@@ -62,11 +64,54 @@ async function refresh() {
     return;
   }
   if (route.view === 'desk') await renderDesk();
+  else if (route.view === 'review') await renderReview();
   else await renderItem();
+}
+
+async function renderReview() {
+  els.desk.innerHTML = '';
+  els.desk.appendChild(
+    await renderReviewView({
+      adapter,
+      stackName: route.stack,
+      reviewState: await ws.readReviewState(),
+      handlers: {
+        backToDesk: () => {
+          route = { view: 'desk' };
+          refresh();
+        },
+        markReviewed: async (key) => {
+          const entries = await readActivityEntries(adapter);
+          const mine = entries.filter((e) => (e.stack ?? '') === key);
+          const last = mine.length ? String(mine[mine.length - 1].ts ?? '') : new Date().toISOString();
+          const state = await ws.readReviewState();
+          state[key] = last;
+          await ws.writeReviewState(state);
+          route = { view: 'desk' };
+          refresh();
+        },
+      },
+    }),
+  );
 }
 
 async function renderDesk() {
   const desk = await ws.readDesk();
+  // Agent activity aggregation (R-12): per-stack unreviewed change counts +
+  // assigned agents (R-13, display-only).
+  const [entries, reviewState, config] = await Promise.all([
+    readActivityEntries(adapter),
+    ws.readReviewState(),
+    ws.readConfig(),
+  ]);
+  for (const stack of desk.stacks) {
+    const key = stack.name;
+    const lastReviewedTs = reviewState[key];
+    stack.agentChanges = entries.filter(
+      (e) => (e.stack ?? '') === key && (!lastReviewedTs || String(e.ts ?? '') > lastReviewedTs),
+    ).length;
+    stack.agents = config.stacks?.[key]?.agents ?? [];
+  }
   els.desk.innerHTML = '';
   if (!desk.stacks.length && !desk.inboxItems.length) {
     els.desk.appendChild(buildWelcome());
@@ -91,6 +136,14 @@ function deskHandlers() {
   return {
     openItem: (dir, fileName) => {
       route = { view: 'item', dir, fileName, editing: false };
+      refresh();
+    },
+    reviewStack: (stackName) => {
+      route = { view: 'review', stack: stackName };
+      refresh();
+    },
+    moveItemTo: async (fromDir, fileName, toDir) => {
+      await ws.moveItem(fromDir, fileName, toDir);
       refresh();
     },
     createStack: async () => {

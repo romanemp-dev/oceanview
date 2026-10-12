@@ -207,7 +207,54 @@ input[type="date"].due-chip.overdue { background: var(--danger-soft); color: var
 
 .notice.center { text-align: center; margin: 4px 0 20px; }
 
-.stack-name { cursor: pointer; }
+.agent-chip {
+  font-size: 11px;
+  color: var(--muted);
+  border: 1px dashed var(--surface-2);
+  border-radius: 999px;
+  padding: 1px 8px;
+  font-weight: 400;
+}
+
+.agent-marker {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--accent);
+  background: var(--accent-soft);
+  border: none;
+  border-radius: 999px;
+  padding: 2px 10px;
+  cursor: pointer;
+  font-family: inherit;
+}
+.agent-marker:hover { filter: brightness(0.96); }
+
+/* Inbox suggestions (R-09) */
+.inbox-entry { margin-bottom: 4px; }
+.suggest-row { display: flex; gap: 6px; align-items: center; padding: 0 8px 2px; flex-wrap: wrap; }
+.suggest-label { color: var(--muted); font-size: 12px; }
+.btn.suggest { border-color: var(--accent-soft); color: var(--accent); background: var(--accent-soft); }
+.btn.suggest:hover { filter: brightness(0.97); }
+
+/* Review view (R-12) */
+.review-view { max-width: 900px; margin: 0 auto; }
+.activity-list { list-style: none; padding: 0; display: grid; gap: 10px; }
+.activity-entry {
+  background: var(--surface);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 14px 18px;
+}
+.activity-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.activity-ts { color: var(--muted); font-size: 12px; margin-left: auto; }
+.activity-summary { margin-top: 6px; font-size: 14px; }
+.activity-files { margin-top: 8px; display: flex; gap: 6px; flex-wrap: wrap; }
+.activity-files code {
+  font-size: 12px;
+  background: var(--surface-2);
+  border-radius: 6px;
+  padding: 2px 8px;
+}
 
 /* Today tray (R-10) */
 .today-tray {
