@@ -22,6 +22,20 @@ In progress
 
 Nothing yet.
 
+R-14 done — full-text search (commit 97944d2): client-side over the desk
+snapshot, title/body scoring with phrase bonus, snippets, topbar dropdown,
+'/' hotkey.
+R-15 done — slides preview (commit 97944d2): Marp-style --- separators with
+front-matter options, paged viewer (arrow keys), dark theme, editor preview
+of slide 1.
+R-05 fully done (commit 97944d2): P1 types list + slides added to the
+note/checklist cycle.
+R-18 done — PWA packaging (commit 62dd587): manifest, SVG icon, service
+worker offline shell (cache-first app shell; workspace files stay on the
+File System Access API path).
+R-16 covered by scripts/serve.sh since R-01 (spec's conditional need — no
+file:// feature blocking observed); no extra double-click script added.
+
 R-09 done — smart placement (commit 0d448e4): deterministic scoring (shared
 terms, stack-name tokens, tags; recent-stack fallback), one-click confirm
 buttons with reasons on inbox items.
@@ -52,16 +66,15 @@ desk<->item routing.
 
 Next
 
-Build agent: M3 milestone reached (R-09+R-12+R-13). Remaining: R-05 P1 part
-(list, slides types), Wave 4 polish — R-14 search, R-15 slides preview,
-R-18 PWA; R-17 theme still blocked on the user's visual spec.
-User (optional): point an OpenClaw agent at the workspace using
-docs/workspace-conventions.md and try the S3/S4 scenarios (delegate → review).
-Push to origin when ready.
+All spec items are done or explicitly deferred except R-17 (final visual
+theme) — blocked on the user's visual spec.
+Suggested follow-ups: real-agent trial run of docs/workspace-conventions.md
+(S3/S4), trash restore/purge UI (D-015), push to origin, v1.0 tag.
 
 Blocked
 
-R-17 (final visual theme) — waiting on the user's visual spec.
+R-17 (final visual theme) — waiting on the user's visual spec. Everything
+else in spec v1.0 is done; MVP (all P0) complete.
 
 Known issues
 
