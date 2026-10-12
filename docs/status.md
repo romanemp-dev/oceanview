@@ -22,6 +22,13 @@ In progress
 
 Nothing yet.
 
+Conventions audit (commit aa14d4f): workspace-conventions.md checked rule-by-
+rule against the implementation. Two doc fixes (type enum extended to
+note|checklist|list|slides; removed the undocumented stack:"desk" scope) and
+two code consolidations (unreviewedCount shared by markers and review view).
+Verified by an end-to-end agent simulation: inbox move, created/updated
+semantics, @due parsing, activity log write/read, review-state persistence.
+
 R-14 done — full-text search (commit 97944d2): client-side over the desk
 snapshot, title/body scoring with phrase bonus, snippets, topbar dropdown,
 '/' hotkey.
