@@ -207,6 +207,41 @@ input[type="date"].due-chip.overdue { background: var(--danger-soft); color: var
 
 .notice.center { text-align: center; margin: 4px 0 20px; }
 
+/* External change detection (R-19) */
+.changes-panel {
+  background: var(--warn-soft);
+  border: 1px solid #ecd9b0;
+  border-radius: var(--radius);
+  padding: 14px 18px;
+  margin-bottom: 20px;
+}
+.changes-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.changes-list { list-style: none; margin: 10px 0 0; padding: 0; display: grid; gap: 6px; }
+.changes-item { font-size: 13.5px; }
+.changes-line { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.changes-line.clickable { cursor: pointer; }
+.changes-line:hover code { text-decoration: underline; }
+.changes-line code {
+  background: var(--surface);
+  border-radius: 6px;
+  padding: 2px 8px;
+  font-size: 12.5px;
+}
+.changes-meta { color: var(--muted); font-size: 12px; }
+.chip.kind-changed { background: var(--warn-soft); color: var(--warn); }
+.chip.kind-added { background: var(--accent-soft); color: var(--accent); }
+.chip.kind-removed { background: var(--danger-soft); color: var(--danger); }
+
+.ext-change-badge {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--warn);
+  background: var(--warn-soft);
+  border-radius: 999px;
+  padding: 2px 10px;
+  cursor: default;
+}
+
 .agent-chip {
   font-size: 11px;
   color: var(--muted);

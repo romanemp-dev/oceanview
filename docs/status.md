@@ -22,6 +22,12 @@ In progress
 
 Nothing yet.
 
+R-19 done — proactive external change detection (user-prioritized, D-016):
+content fingerprints (SHA-256) of all item files in .desk/index.json, diffed
+on every desk refresh; catches agent edits without log entries and manual
+edits; soft-surfaced as a desk panel + "changed outside" badges; app-owned
+writes are hook-recorded and never flagged; "Mark all seen" re-baselines.
+
 Conventions audit (commit aa14d4f): workspace-conventions.md checked rule-by-
 rule against the implementation. Two doc fixes (type enum extended to
 note|checklist|list|slides; removed the undocumented stack:"desk" scope) and

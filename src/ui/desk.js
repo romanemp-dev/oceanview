@@ -34,6 +34,9 @@ export function renderDeskView({ desk, handlers }) {
   const inbox = el('section', 'card');
   const inboxTitle = el('h3', null, 'Inbox');
   if (desk.inboxItems.length) inboxTitle.appendChild(badge(String(desk.inboxItems.length)));
+  if (desk.inboxExternalChanges?.length) {
+    inboxTitle.appendChild(el('span', 'ext-change-badge', `↻ ${desk.inboxExternalChanges.length} changed outside`));
+  }
   inbox.appendChild(inboxTitle);
   inbox.appendChild(el('div', 'count', `${desk.inboxItems.length} unsorted item(s)`));
   for (const item of desk.inboxItems.slice(0, 5)) {
@@ -68,6 +71,9 @@ export function renderDeskView({ desk, handlers }) {
     title.appendChild(el('span', 'stack-name', stack.name));
     if (stack.hasOverdue) title.appendChild(badge('overdue', 'pill overdue'));
     else if (stack.hasDueToday) title.appendChild(badge('due today', 'pill today'));
+    if (stack.externalChanges?.length) {
+      title.appendChild(el('span', 'ext-change-badge', `↻ ${stack.externalChanges.length} changed outside`));
+    }
     if (stack.agentChanges) {
       const marker = el('button', 'agent-marker', `⬡ ${stack.agentChanges} agent change${stack.agentChanges > 1 ? 's' : ''}`);
       marker.type = 'button';

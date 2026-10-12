@@ -62,7 +62,7 @@ function welcomeItem() {
   );
 }
 
-export function createWorkspaceModel(adapter) {
+export function createWorkspaceModel(adapter, hooks = null) {
   async function listStacks() {
     const entries = await adapter.listDir(STACKS_DIR);
     return entries.filter((e) => e.kind === 'directory').map((e) => e.name).sort();
@@ -93,7 +93,10 @@ export function createWorkspaceModel(adapter) {
   async function writeItem(dir, fileName, meta, body) {
     meta.updated = todayIso();
     if (!meta.created) meta.created = meta.updated;
-    await adapter.writeFile(`${dir}/${fileName}`, serializeFrontMatter(meta, body));
+    const path = `${dir}/${fileName}`;
+    const contents = serializeFrontMatter(meta, body);
+    await adapter.writeFile(path, contents);
+    await hooks?.onWrite?.(path, contents);
   }
 
   async function readConfig() {
@@ -129,8 +132,10 @@ export function createWorkspaceModel(adapter) {
       const stamp = new Date().toISOString().replace(/[:.]/g, '-');
       const target = `${DESK_DIR}/trash/${stamp}`;
       await adapter.ensureDir(target);
-      await adapter.writeFile(`${target}/${fileName}`, await adapter.readFile(`${dir}/${fileName}`));
+      const contents = await adapter.readFile(`${dir}/${fileName}`);
+      await adapter.writeFile(`${target}/${fileName}`, contents);
       await adapter.deleteFile(`${dir}/${fileName}`);
+      await hooks?.onDelete?.(`${dir}/${fileName}`);
     },
 
     async trashStack(name) {
@@ -141,6 +146,7 @@ export function createWorkspaceModel(adapter) {
       for (const entry of entries) {
         if (entry.kind !== 'file') continue;
         await adapter.writeFile(`${target}/${entry.name}`, await adapter.readFile(`${STACKS_DIR}/${name}/${entry.name}`));
+        await hooks?.onDelete?.(`${STACKS_DIR}/${name}/${entry.name}`);
       }
       await adapter.deleteDir(`${STACKS_DIR}/${name}`);
       const config = await readConfig();
@@ -216,10 +222,10 @@ export function createWorkspaceModel(adapter) {
       await adapter.ensureDir(`${STACKS_DIR}/${newName}`);
       for (const entry of entries) {
         if (entry.kind !== 'file') continue;
-        await adapter.writeFile(
-          `${STACKS_DIR}/${newName}/${entry.name}`,
-          await adapter.readFile(`${STACKS_DIR}/${oldName}/${entry.name}`),
-        );
+        const contents = await adapter.readFile(`${STACKS_DIR}/${oldName}/${entry.name}`);
+        await adapter.writeFile(`${STACKS_DIR}/${newName}/${entry.name}`, contents);
+        await hooks?.onWrite?.(`${STACKS_DIR}/${newName}/${entry.name}`, contents);
+        await hooks?.onDelete?.(`${STACKS_DIR}/${oldName}/${entry.name}`);
       }
       await adapter.deleteDir(`${STACKS_DIR}/${oldName}`);
       const config = await readConfig();
@@ -235,6 +241,8 @@ export function createWorkspaceModel(adapter) {
       const raw = await adapter.readFile(`${fromDir}/${fileName}`);
       await adapter.writeFile(`${toDir}/${fileName}`, raw);
       await adapter.deleteFile?.(`${fromDir}/${fileName}`);
+      await hooks?.onWrite?.(`${toDir}/${fileName}`, raw);
+      await hooks?.onDelete?.(`${fromDir}/${fileName}`);
       return `${toDir}/${fileName}`;
     },
 

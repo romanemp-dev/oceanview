@@ -7,6 +7,7 @@ import { setupQuickCapture, captureItemText } from './ui/capture.js';
 import { setupSearch } from './ui/search.js';
 import { renderReviewView } from './ui/review.js';
 import { readActivityEntries, unreviewedCount } from './core/activity.js';
+import { scanItemFiles, loadIndex, saveIndex, buildBaselineFromScan, diffAgainstIndex, createIndexHooks, stackOfPath, itemDirOfPath, INDEX_PATH } from './core/changes.js';
 
 // PWA (R-18): register the offline shell service worker.
 if ('serviceWorker' in navigator) {
@@ -27,6 +28,7 @@ let adapter = null;
 let ws = null;
 let route = { view: 'desk' }; // {view:'desk'} | {view:'item', dir, fileName, editing} | {view:'review', stack}
 let lastDesk = null;
+let changeTracker = null; // { getIndex, isReady, save, index } — external change detection (R-19)
 
 const searchBox = setupSearch({
   container: document.getElementById('search-mount'),
@@ -116,6 +118,12 @@ async function renderDesk() {
   const desk = await ws.readDesk();
   lastDesk = desk;
   searchBox.setDesk(desk);
+  // External change detection (R-19): fingerprint scan vs index.
+  const externalChanges = await detectChanges();
+  for (const stack of desk.stacks) {
+    stack.externalChanges = externalChanges.filter((c) => stackOfPath(c.path) === stack.name);
+  }
+  desk.inboxExternalChanges = externalChanges.filter((c) => stackOfPath(c.path) === 'Inbox');
   // Agent activity aggregation (R-12): per-stack unreviewed change counts +
   // assigned agents (R-13, display-only).
   const [entries, reviewState, config] = await Promise.all([
@@ -129,6 +137,9 @@ async function renderDesk() {
     stack.agents = config.stacks?.[key]?.agents ?? [];
   }
   els.desk.innerHTML = '';
+  if (externalChanges.length) {
+    els.desk.appendChild(buildChangesPanel(externalChanges));
+  }
   if (!desk.stacks.length && !desk.inboxItems.length) {
     els.desk.appendChild(buildWelcome());
     const hint = el('p', 'notice center', 'Workspace is ready. Create your first stack to start filling the desk.');
@@ -395,10 +406,109 @@ async function onCreateDesk(input, err, btn) {
 
 // ---------- connection ----------
 
+// ---------- external change detection (R-19) ----------
+
+function changeTrackerReady() {
+  return Boolean(changeTracker?.index && adapter && ws);
+}
+
+async function detectChanges() {
+  if (!changeTrackerReady()) return [];
+  try {
+    const scan = await scanItemFiles(adapter);
+    const { changes } = diffAgainstIndex(scan, changeTracker.index, await readActivityEntries(adapter));
+    return changes;
+  } catch (err) {
+    console.warn('change detection failed:', err);
+    return [];
+  }
+}
+
+async function initChangeTracker() {
+  const saved = await loadIndex(adapter);
+  if (saved) {
+    changeTracker = {
+      index: saved,
+      isReady: () => Boolean(adapter && ws),
+      save: async () => saveIndex(adapter, changeTracker.index),
+    };
+    return;
+  }
+  // First run with this workspace: fingerprint everything as the baseline so
+  // existing files are not flagged as "added".
+  const scan = await scanItemFiles(adapter);
+  const baseline = buildBaselineFromScan(scan);
+  await saveIndex(adapter, baseline);
+  changeTracker = {
+    index: baseline,
+    isReady: () => Boolean(adapter && ws),
+    save: async () => saveIndex(adapter, changeTracker.index),
+  };
+}
+
+function describeChange(c) {
+  if (c.kind === 'added') return 'new file';
+  if (c.kind === 'removed') return 'deleted';
+  return 'modified';
+}
+
+function buildChangesPanel(changes) {
+  const panel = el('div', 'changes-panel');
+  const head = el('div', 'changes-head');
+  head.appendChild(el('strong', null, `Changes outside the app: ${changes.length}`));
+  head.appendChild(el('span', 'notice', ' Made by an agent without a log entry, or by hand. Check them before sorting.'));
+  const markSeen = el('button', 'btn small', 'Mark all seen');
+  markSeen.type = 'button';
+  markSeen.addEventListener('click', async () => {
+    for (const c of changes) {
+      const scan = await scanItemFiles(adapter);
+      const current = scan.get(c.path);
+      if (current && c.kind !== 'removed') {
+        changeTracker.index.files[c.path] = current;
+        delete changeTracker.index.pending[c.path];
+      } else if (c.kind === 'removed') {
+        delete changeTracker.index.files[c.path];
+        delete changeTracker.index.pending[c.path];
+      }
+    }
+    await changeTracker.save();
+    refresh();
+  });
+  head.appendChild(markSeen);
+  panel.appendChild(head);
+
+  const list = el('ul', 'changes-list');
+  for (const c of changes.slice(0, 8)) {
+    const li = el('li', 'changes-item');
+    const line = el('div', 'changes-line clickable');
+    line.appendChild(el('span', `chip kind-${c.kind}`, describeChange(c))); 
+    line.appendChild(el('code', null, c.path));
+    const meta = [];
+    const pending = changeTracker.index.pending[c.path];
+    if (pending?.agent) meta.push(`agent: ${pending.agent}`);
+    if (pending?.detected) meta.push(`detected ${new Date(pending.detected).toLocaleString()}`);
+    if (meta.length) line.appendChild(el('span', 'changes-meta', meta.join(' · ')));
+    line.addEventListener('click', () => {
+      if (c.kind === 'removed') return;
+      route = { view: 'item', dir: itemDirOfPath(c.path), fileName: c.path.split('/').pop(), editing: false };
+      refresh();
+    });
+    li.appendChild(line);
+    list.appendChild(li);
+  }
+  if (changes.length > 8) list.appendChild(el('li', 'notice', `…and ${changes.length - 8} more`));
+  panel.appendChild(list);
+  return panel;
+}
+
 async function connectFlow(handle) {
   await saveHandle(handle);
   adapter = fsAccessAdapter(handle);
-  ws = createWorkspaceModel(adapter);
+  ws = createWorkspaceModel(adapter, createIndexHooks({
+    getIndex: () => changeTracker?.index ?? { files: {}, pending: {} },
+    isReady: () => changeTrackerReady(),
+    save: async () => { if (changeTracker) await saveIndex(adapter, changeTracker.index); },
+  }));
   route = { view: 'desk' };
   setStatus(`Workspace: ${handle.name}`);
   show(els.disconnect);

@@ -68,3 +68,22 @@ Decision: all deletions in v1 are soft — items and whole stacks move to
 Consequences: no data loss from misclicks; trash grows over time and needs a
 cleanup affordance eventually; acceptance criterion for R-04 uses soft-delete
 semantics instead of the spec's implied hard delete.
+
+D-016
+
+Context: "bump updated" discipline relies on the writer's honesty — external
+agents may skip it, and the user editing in another editor certainly will not
+bother. The desk must not trust anyone's discipline.
+Decision: proactive external change detection (R-19). Every refresh
+fingerprints all item files (SHA-256 into .desk/index.json, the derived cache
+from architecture.md) and diffs against the index. Any content change made
+outside the app — agent without a log entry, or manual edit — surfaces as a
+soft warning: a "Changes outside the app" panel on the desk plus "changed
+outside" badges on the affected stack/inbox cards. Changes the app makes
+itself are recorded into the index via write hooks and never flagged.
+Agent attribution is best-effort: if the activity log mentions the file, the
+author is shown. "Mark all seen" re-baselines the flagged files.
+Consequences: agents are no longer required to be honest about what they
+touched — the desk sees it anyway; every refresh costs one read of all item
+files (fine at workspace scale; index.json stays derived and safe to delete);
+first run builds a baseline so pre-existing files are not flagged.
