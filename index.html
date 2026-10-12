@@ -5,11 +5,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Oceanview</title>
   <link rel="stylesheet" href="styles.css">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
 </head>
 <body>
   <header class="topbar">
     <div class="brand">Oceanview</div>
     <div class="toolbar">
+      <span id="search-mount"></span>
       <span id="ws-status" class="ws-status">No workspace connected</span>
       <button id="btn-connect" class="btn primary hidden">Connect workspace…</button>
       <button id="btn-restore" class="btn hidden">Restore access…</button>

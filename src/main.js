@@ -4,8 +4,16 @@ import { createWorkspaceModel, sanitizeDeskFolderName, INBOX, STACKS_DIR } from 
 import { renderDeskView, promptName } from './ui/desk.js';
 import { renderItemView } from './ui/item.js';
 import { setupQuickCapture, captureItemText } from './ui/capture.js';
+import { setupSearch } from './ui/search.js';
 import { renderReviewView } from './ui/review.js';
 import { readActivityEntries } from './core/activity.js';
+
+// PWA (R-18): register the offline shell service worker.
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js').catch((err) => console.warn('SW registration failed:', err));
+  });
+}
 
 const els = {
   status: document.getElementById('ws-status'),
@@ -17,7 +25,17 @@ const els = {
 
 let adapter = null;
 let ws = null;
-let route = { view: 'desk' }; // {view:'desk'} | {view:'item', dir, fileName, editing}
+let route = { view: 'desk' }; // {view:'desk'} | {view:'item', dir, fileName, editing} | {view:'review', stack}
+let lastDesk = null;
+
+const searchBox = setupSearch({
+  container: document.getElementById('search-mount'),
+  getDesk: () => lastDesk,
+  openItem: (dir, fileName) => {
+    route = { view: 'item', dir, fileName, editing: false };
+    refresh();
+  },
+});
 
 function show(el) { el.classList.remove('hidden'); }
 function hide(el) { el.classList.add('hidden'); }
@@ -67,7 +85,6 @@ async function refresh() {
   else if (route.view === 'review') await renderReview();
   else await renderItem();
 }
-
 async function renderReview() {
   els.desk.innerHTML = '';
   els.desk.appendChild(
@@ -97,6 +114,8 @@ async function renderReview() {
 
 async function renderDesk() {
   const desk = await ws.readDesk();
+  lastDesk = desk;
+  searchBox.setDesk(desk);
   // Agent activity aggregation (R-12): per-stack unreviewed change counts +
   // assigned agents (R-13, display-only).
   const [entries, reviewState, config] = await Promise.all([
@@ -228,7 +247,9 @@ async function renderItem() {
           refresh();
         },
         switchType: async () => {
-          item.meta.type = item.meta.type === 'checklist' ? 'note' : 'checklist';
+          const order = ['note', 'checklist', 'list', 'slides'];
+          const next = order[(order.indexOf(item.meta.type ?? 'note') + 1) % order.length];
+          item.meta.type = next;
           await ws.writeItem(route.dir, route.fileName, item.meta, item.body);
           refresh();
         },
