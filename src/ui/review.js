@@ -13,9 +13,7 @@ function el(tag, className, text) {
 export async function renderReviewView({ adapter, stackName, reviewState, handlers }) {
   const key = stackName === 'inbox' ? 'inbox' : stackName;
   const lastReviewedTs = reviewState[key];
-  const all = (await readActivityEntries(adapter)).filter(
-    (e) => (e.stack ?? '') === key || (key !== 'inbox' && (e.stack ?? '') === key),
-  );
+  const all = (await readActivityEntries(adapter)).filter((e) => (e.stack ?? '') === key);
   const unreviewed = all.filter((e) => !lastReviewedTs || String(e.ts ?? '') > lastReviewedTs);
   const shown = unreviewed.length ? unreviewed : all.slice(-10);
 

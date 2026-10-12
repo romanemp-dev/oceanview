@@ -6,7 +6,7 @@ import { renderItemView } from './ui/item.js';
 import { setupQuickCapture, captureItemText } from './ui/capture.js';
 import { setupSearch } from './ui/search.js';
 import { renderReviewView } from './ui/review.js';
-import { readActivityEntries } from './core/activity.js';
+import { readActivityEntries, unreviewedCount } from './core/activity.js';
 
 // PWA (R-18): register the offline shell service worker.
 if ('serviceWorker' in navigator) {
@@ -125,10 +125,7 @@ async function renderDesk() {
   ]);
   for (const stack of desk.stacks) {
     const key = stack.name;
-    const lastReviewedTs = reviewState[key];
-    stack.agentChanges = entries.filter(
-      (e) => (e.stack ?? '') === key && (!lastReviewedTs || String(e.ts ?? '') > lastReviewedTs),
-    ).length;
+    stack.agentChanges = unreviewedCount(entries, key, reviewState[key]);
     stack.agents = config.stacks?.[key]?.agents ?? [];
   }
   els.desk.innerHTML = '';

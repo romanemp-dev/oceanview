@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { memoryAdapter } from '../src/core/memory-adapter.js';
 import { createWorkspaceModel, STACKS_DIR } from '../src/core/workspace.js';
 import { tokenize, suggestStacks } from '../src/core/placement.js';
-import { readActivityEntries, isEntryUnreviewed } from '../src/core/activity.js';
+import { readActivityEntries, isEntryUnreviewed, unreviewedCount } from '../src/core/activity.js';
 
 test('placement: tokenize filters stopwords and short words', () => {
   const tokens = tokenize('Buy flights to Osaka and the hotel');
@@ -88,4 +88,17 @@ test('review state: round-trip', async () => {
   assert.deepEqual(await ws.readReviewState(), {});
   await ws.writeReviewState({ work: '2026-06-01T10:00:00Z' });
   assert.deepEqual(await ws.readReviewState(), { work: '2026-06-01T10:00:00Z' });
+});
+
+test('unreviewedCount: per-scope counting for markers', () => {
+  const entries = [
+    { ts: '2026-06-01T10:00:00Z', stack: 'work' },
+    { ts: '2026-06-02T10:00:00Z', stack: 'work' },
+    { ts: '2026-06-02T11:00:00Z', stack: 'inbox' },
+  ];
+  assert.equal(unreviewedCount(entries, 'work', undefined), 2);
+  assert.equal(unreviewedCount(entries, 'work', '2026-06-01T10:00:00Z'), 1);
+  assert.equal(unreviewedCount(entries, 'work', '2026-06-03T00:00:00Z'), 0);
+  assert.equal(unreviewedCount(entries, 'inbox', undefined), 1);
+  assert.equal(unreviewedCount(entries, 'other', undefined), 0);
 });

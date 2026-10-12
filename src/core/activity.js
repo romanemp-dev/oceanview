@@ -40,3 +40,11 @@ export async function readActivityEntries(adapter) {
 export function isEntryUnreviewed(entry, lastReviewedTs) {
   return !lastReviewedTs || String(entry.ts ?? '') > lastReviewedTs;
 }
+
+// Number of entries for a scope (stack name or "inbox") newer than the last
+// reviewed timestamp. Used for desk markers (R-11/R-12).
+export function unreviewedCount(entries, scope, lastReviewedTs) {
+  return entries.filter(
+    (e) => (e.stack ?? '') === scope && isEntryUnreviewed(e, lastReviewedTs),
+  ).length;
+}

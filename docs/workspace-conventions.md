@@ -28,7 +28,7 @@ One markdown file per item, with YAML front-matter:
 
 ```markdown
 ---
-type: note            # note | checklist
+type: note            # note | checklist | list | slides
 title: Flights to Osaka
 created: 2026-06-01
 updated: 2026-06-01
@@ -78,7 +78,8 @@ Field rules:
 - `ts` — ISO-8601 timestamp of the change (UTC with Z is fine).
 - `agent` — your agent's name, stable across sessions.
 - `stack` — stack name exactly as the folder name under `stacks/`; use
-  `"inbox"` for inbox work; use `"desk"` for workspace-wide operations.
+  `"inbox"` for inbox work. For workspace-wide operations, log one line per
+  affected stack — the v1 desk shows per-stack review only.
 - `action` — one of `create | edit | summarize | move | cleanup`.
 - `files` — workspace-relative paths you touched, as an array.
 - `summary` — one human-readable sentence: what changed and why.
