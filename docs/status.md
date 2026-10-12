@@ -20,14 +20,22 @@ node --test — all passing.
 
 In progress
 
-Onboarding reworked (D-014): welcome screen with two paths — "Connect workspace…"
-and "Create new desk…" (app creates the folder and initializes the structure).
-Commit a75b5d5; decisions.md updated.
+Nothing yet.
+
+R-04 done — stack CRUD + moving items (commit 457f49f):
+create/rename stack (dialog), soft-delete stack/items to .desk/trash/ (D-015),
+move item between stacks and inbox, item name dedupe, desk view rendering
+(stack cards with attention markers, item lines, new-stack card).
+R-06 done — markdown editor + preview and item view (commit 676b557):
+XSS-safe dependency-free markdown renderer, split editor/preview with
+Ctrl/Cmd+S save, checkbox toggling in reader, type switch, move/delete dialogs,
+desk<->item routing.
 
 Next
 
-Build agent: R-03 desk view polish on live data, then R-04 stack CRUD + move items
-(Wave 1 continues per docs/plan.md).
+Build agent: R-05 note/checklist behaviors polish, then Wave 2 per docs/plan.md —
+R-07 due-date chips + editor support, R-08 quick capture, R-10 today tray,
+R-11 attention markers.
 User (optional): push to origin when ready; run `./scripts/serve.sh` and open
 http://localhost:8171 in Chrome/Edge to try the flow.
 
@@ -39,5 +47,4 @@ Known issues
 
 - Browsers without the File System Access API get an explanatory screen; the
   browser-storage fallback adapter is planned with Wave 1 UI work.
-- Stack delete (R-04) will permanently delete files (FSA has no OS-trash API) —
-  confirm semantics with the user before implementing (see docs/plan.md open questions).
+- Trash has no restore/purge UI yet; contents are plain files under .desk/trash/ (D-015).

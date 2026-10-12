@@ -57,3 +57,14 @@ showDirectoryPicker (FSA cannot create folders outside a picked directory);
 creation over an existing non-empty folder is refused.
 Consequences: empty-folder initialization now happens automatically on the create
 path; the manual "Initialize workspace" banner stays for the connect path.
+
+D-015
+
+Context: the File System Access API cannot use the OS trash; permanent file
+deletion would be scary and irreversible.
+Decision: all deletions in v1 are soft — items and whole stacks move to
+.desk/trash/<timestamp>/ (stacks keep their file names). No restore UI yet
+(trash is browsable as plain files); purge/cleanup is a later decision.
+Consequences: no data loss from misclicks; trash grows over time and needs a
+cleanup affordance eventually; acceptance criterion for R-04 uses soft-delete
+semantics instead of the spec's implied hard delete.
