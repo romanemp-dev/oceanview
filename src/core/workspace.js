@@ -240,5 +240,19 @@ export function createWorkspaceModel(adapter) {
 
     readConfig,
     writeConfig,
+
+    // Reviewed-state per stack lives in .desk/review-state.json:
+    // { "<stack>": "<last reviewed activity ts>" }. Inbox uses "inbox".
+    async readReviewState() {
+      try {
+        return JSON.parse(await adapter.readFile(`${DESK_DIR}/review-state.json`));
+      } catch {
+        return {};
+      }
+    },
+
+    async writeReviewState(state) {
+      await adapter.writeFile(`${DESK_DIR}/review-state.json`, JSON.stringify(state, null, 2) + '\n');
+    },
   };
 }
