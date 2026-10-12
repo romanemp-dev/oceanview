@@ -29,6 +29,7 @@ export function workspaceInitPlan() {
     { dir: STACKS_DIR },
     { dir: DESK_DIR },
     { dir: `${DESK_DIR}/activity` },
+    { dir: `${DESK_DIR}/trash` },
     { file: `${DESK_DIR}/config.json`, contents: JSON.stringify({ version: 1, stacks: {} }, null, 2) + '\n' },
     { file: `${STACKS_DIR}/welcome.md`, contents: welcomeItem() },
   ];
@@ -122,6 +123,31 @@ export function createWorkspaceModel(adapter) {
       }
     },
 
+    // Soft delete (D-015): items and stacks move to .desk/trash/<timestamp>/.
+    // Nothing is permanently deleted in v1.
+    async trashItem(dir, fileName) {
+      const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+      const target = `${DESK_DIR}/trash/${stamp}`;
+      await adapter.ensureDir(target);
+      await adapter.writeFile(`${target}/${fileName}`, await adapter.readFile(`${dir}/${fileName}`));
+      await adapter.deleteFile(`${dir}/${fileName}`);
+    },
+
+    async trashStack(name) {
+      const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+      const target = `${DESK_DIR}/trash/${stamp}-${name}`;
+      const entries = await adapter.listDir(`${STACKS_DIR}/${name}`);
+      await adapter.ensureDir(target);
+      for (const entry of entries) {
+        if (entry.kind !== 'file') continue;
+        await adapter.writeFile(`${target}/${entry.name}`, await adapter.readFile(`${STACKS_DIR}/${name}/${entry.name}`));
+      }
+      await adapter.deleteDir(`${STACKS_DIR}/${name}`);
+      const config = await readConfig();
+      delete config.stacks?.[name];
+      await writeConfig(config);
+    },
+
     listStacks,
 
     async readDesk() {
@@ -171,9 +197,38 @@ export function createWorkspaceModel(adapter) {
       const today = todayIso();
       const meta = { type, title, created: today, updated: today, tags: [] };
       const body = type === 'checklist' ? '- [ ] ' : '';
-      const fileName = `${title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'item'}.md`;
+      const base = title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'item';
+      const files = new Set((await adapter.listDir(dir)).filter((e) => e.kind === 'file').map((e) => e.name));
+      let fileName = `${base}.md`;
+      let n = 2;
+      while (files.has(fileName)) {
+        fileName = `${base}-${n}.md`;
+        n++;
+      }
       await writeItem(dir, fileName, meta, body);
       return fileName;
+    },
+
+    async renameStack(oldName, newName) {
+      if (!/^[^/\\]+$/.test(newName)) throw new Error(`Invalid stack name: ${newName}`);
+      if (newName === oldName) return;
+      const entries = await adapter.listDir(`${STACKS_DIR}/${oldName}`);
+      await adapter.ensureDir(`${STACKS_DIR}/${newName}`);
+      for (const entry of entries) {
+        if (entry.kind !== 'file') continue;
+        await adapter.writeFile(
+          `${STACKS_DIR}/${newName}/${entry.name}`,
+          await adapter.readFile(`${STACKS_DIR}/${oldName}/${entry.name}`),
+        );
+      }
+      await adapter.deleteDir(`${STACKS_DIR}/${oldName}`);
+      const config = await readConfig();
+      config.stacks = config.stacks ?? {};
+      if (config.stacks[oldName]) {
+        config.stacks[newName] = config.stacks[oldName];
+        delete config.stacks[oldName];
+      }
+      await writeConfig(config);
     },
 
     async moveItem(fromDir, fileName, toDir) {

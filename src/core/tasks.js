@@ -36,3 +36,19 @@ export function isOverdue(dueIso, todayIsoStr) {
 export function isDueToday(dueIso, todayIsoStr) {
   return Boolean(dueIso) && dueIso === todayIsoStr;
 }
+
+// Replace the nth task line's checkbox state (index order matches parseTasks).
+export function toggleTaskLine(body, index, done) {
+  let seen = -1;
+  const lines = body.split('\n');
+  for (let i = 0; i < lines.length; i++) {
+    const m = lines[i].match(/^(\s*[-*]\s+)\[( |x|X)\](\s+.*)$/);
+    if (!m) continue;
+    seen++;
+    if (seen === index) {
+      lines[i] = `${m[1]}[${done ? 'x' : ' '}]${m[3]}`;
+      break;
+    }
+  }
+  return lines.join('\n');
+}
