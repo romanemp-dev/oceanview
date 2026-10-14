@@ -22,6 +22,11 @@ In progress
 
 Nothing yet.
 
+Wave 5 done (commit d797f46): trash management (manifest _origin.json,
+restore with stack/folder recreation and name dedupe, purge with explicit
+confirm, topbar Trash view) and full R-13 (per-stack agent assignment via
+desk dialog, config.json as the store).
+
 R-19 done — proactive external change detection (user-prioritized, D-016):
 content fingerprints (SHA-256) of all item files in .desk/index.json, diffed
 on every desk refresh; catches agent edits without log entries and manual
