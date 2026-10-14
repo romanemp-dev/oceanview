@@ -93,7 +93,7 @@ test('workspace: initialize then read desk', async () => {
 
   const desk = await ws.readDesk();
   assert.equal(desk.stacks.length, 0);
-  assert.equal(desk.inboxItems.length, 0);
+  assert.equal(desk.inboxItems.length, 1); // welcome item
 
   await ws.createStack('work');
   const fileName = await ws.createItem(`${STACKS_DIR}/work`, 'checklist', 'Plan week');

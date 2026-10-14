@@ -244,6 +244,37 @@ input[type="date"].due-chip.overdue { background: var(--danger-soft); color: var
   cursor: default;
 }
 
+.chip.saved { background: var(--accent); color: #fff; animation: fadeout 1.5s forwards; }
+@keyframes fadeout { 0%, 60% { opacity: 1; } 100% { opacity: 0; } }
+
+/* Inline editing (Wave 5 UX) */
+.editable-title { cursor: text; border-bottom: 1px dashed transparent; display: inline-block; }
+.editable-title:hover { border-bottom-color: var(--surface-2); }
+
+.inline-edit-zone { margin-top: 18px; padding-top: 12px; border-top: 1px dashed var(--surface-2); }
+.inline-add {
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 13.5px;
+  cursor: pointer;
+  padding: 4px 0;
+}
+.inline-add:hover { color: var(--accent); }
+.inline-editor textarea {
+  width: 100%;
+  border: 1px solid var(--surface-2);
+  border-radius: 8px;
+  padding: 10px 12px;
+  font: inherit;
+  font-size: 14px;
+  resize: vertical;
+  margin-bottom: 8px;
+}
+.inline-editor textarea:focus { outline: 2px solid var(--accent-soft); border-color: var(--accent); }
+.inline-editor .field-row { display: flex; gap: 8px; }
+
 .agent-chip {
   font-size: 11px;
   color: var(--muted);

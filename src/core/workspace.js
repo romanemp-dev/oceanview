@@ -31,7 +31,7 @@ export function workspaceInitPlan() {
     { dir: `${DESK_DIR}/activity` },
     { dir: `${DESK_DIR}/trash` },
     { file: `${DESK_DIR}/config.json`, contents: JSON.stringify({ version: 1, stacks: {} }, null, 2) + '\n' },
-    { file: `${STACKS_DIR}/welcome.md`, contents: welcomeItem() },
+    { file: `${INBOX}/welcome.md`, contents: welcomeItem() },
   ];
 }
 
@@ -55,8 +55,8 @@ function welcomeItem() {
       '',
       '## Tasks',
       '',
-      '- [ ] try the quick capture hotkey @due(' + todayIso() + ')',
-      '- [ ] connect your AI agent (see docs/workspace-conventions.md)',
+      '- [ ] try the quick capture hotkey N',
+      '- [ ] connect your AI agent (see AGENTS.md at the workspace root)',
       '',
     ].join('\n'),
   );
@@ -72,8 +72,7 @@ function uniqueName(existing, fileName) {
   return `${base}-${n}${ext}`;
 }
 
-export function createWorkspaceModel(adapter, hooks = null) {
-  async function listStacks() {
+export function createWorkspaceModel(adapter, hooks = null) {  async function listStacks() {
     const entries = await adapter.listDir(STACKS_DIR);
     return entries.filter((e) => e.kind === 'directory').map((e) => e.name).sort();
   }

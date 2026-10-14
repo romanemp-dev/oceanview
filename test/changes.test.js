@@ -27,7 +27,7 @@ async function fixture() {
 test('changes: scan fingerprints all item files only', async () => {
   const { adapter } = await fixture();
   const scan = await scanItemFiles(adapter);
-  assert.equal(scan.size, 2);
+  assert.equal(scan.size, 3); // work/a.md, inbox/b.md, inbox/welcome.md
   assert.ok(scan.has(`${STACKS_DIR}/work/a.md`));
   assert.ok(scan.has('inbox/b.md'));
   // .desk files are not tracked

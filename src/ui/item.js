@@ -1,4 +1,6 @@
-// Item view: viewer + markdown editor with preview (R-06/R-05/R-15).
+// Item view: viewer + markdown editor with preview (R-06/R-05/R-15) +
+// inline editing (Wave 5 UX): task toggles and note text edits apply silently
+// from the reading view, no explicit edit mode round-trip.
 import { renderMarkdown } from '../core/markdown.js';
 import { toggleTaskLine, setTaskDue } from '../core/tasks.js';
 import { todayIso } from '../core/frontmatter.js';
@@ -28,22 +30,15 @@ export function renderItemView({ item, handlers }) {
   top.appendChild(el('span', 'crumb', `${item.dir}/${item.fileName}`));
 
   const actions = el('div', 'item-actions');
-  const editBtn = actionButton(handlers.editing ? 'Done' : 'Edit', 'Toggle editor', handlers.toggleEdit, 'btn primary small');
-  actions.appendChild(editBtn);
   if (!handlers.editing) {
-    const typeMenu = actionButton(
-      typeMenuLabel(item.meta.type),
-      'Switch item type',
-      handlers.cycleType,
-    );
-    actions.appendChild(typeMenu);
+    actions.appendChild(actionButton(typeMenuLabel(item.meta.type), 'Switch item type', handlers.cycleType));
   }
+  actions.appendChild(actionButton('Full editor', 'Open the split editor', handlers.toggleEdit, 'btn primary small'));
   actions.appendChild(actionButton('Move…', 'Move to another stack or inbox', handlers.moveItem));
   actions.appendChild(actionButton('Delete', 'Move to .desk/trash', handlers.trashItem));
   top.appendChild(actions);
   root.appendChild(top);
 
-  // Meta line.
   const meta = el('div', 'meta-line');
   meta.appendChild(el('span', 'chip', item.meta.type ?? 'note'));
   if (item.meta.created) meta.appendChild(el('span', 'chip muted', `created ${item.meta.created}`));
@@ -68,7 +63,9 @@ function typeMenuLabel(type) {
 
 function buildViewer(item, handlers) {
   const wrap = el('div', 'reader');
-  const title = el('h2', 'item-title', item.meta.title ?? item.fileName);
+  const title = el('h2', 'item-title editable-title', item.meta.title ?? item.fileName);
+  title.title = 'Click to rename';
+  title.addEventListener('click', () => handlers.renameTitle(title.textContent));
   wrap.appendChild(title);
 
   if (item.meta.type === 'slides') {
@@ -78,7 +75,24 @@ function buildViewer(item, handlers) {
 
   const body = el('div', 'markdown-body');
   body.innerHTML = renderMarkdown(item.body, todayIso());
-  // Due chips become date inputs: set/clear the date inline (R-07).
+  upgradeDueChips(body, item);
+  body.addEventListener('change', (e) => {
+    const cb = e.target.closest('input[type="checkbox"][data-task]');
+    if (cb) handlers.toggleTaskSilent(Number(cb.dataset.task), cb.checked);
+  });
+  body.addEventListener('change', (e) => {
+    const dateInput = e.target.closest('input[type="date"][data-task-date]');
+    if (dateInput) handlers.setTaskDueSilent(Number(dateInput.dataset.taskDate), dateInput.value || null);
+  });
+
+  if (item.meta.type === 'note' || item.meta.type === 'list') {
+    body.appendChild(buildInlineEditor(item, handlers));
+  }
+  wrap.appendChild(body);
+  return wrap;
+}
+
+function upgradeDueChips(body, item) {
   for (const chip of body.querySelectorAll('.due-chip[data-task-due]')) {
     const idx = Number(chip.dataset.taskDue);
     const input = document.createElement('input');
@@ -88,18 +102,51 @@ function buildViewer(item, handlers) {
     input.value = item.tasks[idx]?.due ?? '';
     chip.replaceWith(input);
   }
-  body.addEventListener('change', (e) => {
-    const cb = e.target.closest('input[type="checkbox"][data-task]');
-    if (!cb) return;
-    handlers.toggleTask(Number(cb.dataset.task), cb.checked);
+}
+
+// Click-to-edit tail block for notes/lists: appends text without entering the
+// full editor. Enter commits, Shift+Enter adds a line, Esc cancels.
+function buildInlineEditor(item, handlers) {
+  const zone = el('div', 'inline-edit-zone');
+  const hint = el('button', 'inline-add', '+ Add text…');
+  hint.type = 'button';
+  const editor = el('div', 'inline-editor hidden');
+  const ta = el('textarea');
+  ta.rows = 3;
+  ta.placeholder = 'Write… (Enter to save, Shift+Enter for a new line, Esc to cancel)';
+  const row = el('div', 'field-row');
+  const save = el('button', 'btn primary small', 'Save');
+  const cancel = el('button', 'btn small', 'Cancel');
+  row.append(save, cancel);
+  editor.append(ta, row);
+
+  const open = () => {
+    hint.classList.add('hidden');
+    editor.classList.remove('hidden');
+    ta.focus();
+  };
+  const close = () => {
+    ta.value = '';
+    editor.classList.add('hidden');
+    hint.classList.remove('hidden');
+  };
+  const commit = async () => {
+    const text = ta.value.trim();
+    if (!text) return close();
+    await handlers.appendText(text);
+    close();
+  };
+
+  hint.addEventListener('click', open);
+  save.addEventListener('click', commit);
+  cancel.addEventListener('click', close);
+  ta.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); commit(); }
+    if (e.key === 'Escape') close();
   });
-  body.addEventListener('change', (e) => {
-    const dateInput = e.target.closest('input[type="date"][data-task-date]');
-    if (!dateInput) return;
-    handlers.setTaskDue(Number(dateInput.dataset.taskDate), dateInput.value || null);
-  });
-  wrap.appendChild(body);
-  return wrap;
+
+  zone.append(hint, editor);
+  return zone;
 }
 
 function buildSlidesViewer(item) {
@@ -112,9 +159,7 @@ function buildSlidesViewer(item) {
   pager.append(prev, counter, next);
   wrap.appendChild(pager);
 
-  const stage = el('div', 'slide-stage');
-  const theme = options.theme === 'dark' ? ' dark' : '';
-  stage.className = `slide-stage${theme}`;
+  const stage = el('div', `slide-stage${options.theme === 'dark' ? ' dark' : ''}`);
   wrap.appendChild(stage);
 
   let index = 0;
@@ -133,7 +178,6 @@ function buildSlidesViewer(item) {
     if (e.key === 'ArrowRight') go(1);
   }
   document.addEventListener('keydown', onKey);
-  // Detach when the view is torn down (desk re-render clears #desk content).
   const observer = new MutationObserver(() => {
     if (!document.body.contains(stage)) {
       document.removeEventListener('keydown', onKey);

@@ -281,6 +281,16 @@ function confirmDialog(title, text) {
 async function renderItem() {
   const item = await ws.readItem(route.dir, route.fileName);
   els.desk.innerHTML = '';
+  const metaLine = el('div', 'meta-line');
+  els.desk.appendChild(metaLine);
+  function updateMetaLine() {
+    metaLine.innerHTML = '';
+    metaLine.appendChild(el('span', 'chip', item.meta.type ?? 'note'));
+    metaLine.appendChild(el('span', 'chip muted', `updated ${item.meta.updated}`));
+    for (const tag of item.meta.tags ?? []) metaLine.appendChild(el('span', 'chip tag', `#${tag}`));
+    metaLine.appendChild(el('span', 'chip saved', 'saved ✓'));
+    setTimeout(() => metaLine.querySelector('.chip.saved')?.remove(), 1500);
+  }
   els.desk.appendChild(
     renderItemView({
       item,
@@ -306,6 +316,34 @@ async function renderItem() {
           const body = toggleTaskLine(item.body, index, done);
           item.body = body;
           await ws.writeItem(route.dir, route.fileName, item.meta, body);
+          refresh();
+        },
+        // Silent in-place updates (Wave 5 UX): update the file and the local
+        // item without re-rendering the whole view, so checkboxes and dates
+        // keep focus and the reading flow is not interrupted.
+        toggleTaskSilent: async (index, done) => {
+          item.body = toggleTaskLine(item.body, index, done);
+          await ws.writeItem(route.dir, route.fileName, item.meta, item.body);
+          updateMetaLine();
+        },
+        setTaskDueSilent: async (index, dateIso) => {
+          item.body = setTaskDue(item.body, index, dateIso);
+          await ws.writeItem(route.dir, route.fileName, item.meta, item.body);
+          updateMetaLine();
+        },
+        appendText: async (text) => {
+          item.body = `${item.body.replace(/\s+$/, '')}\n\n${text}\n`;
+          await ws.writeItem(route.dir, route.fileName, item.meta, item.body);
+          refresh();
+        },
+        renameTitle: async (newTitle) => {
+          const t = (newTitle ?? '').trim();
+          if (!t || t === item.meta.title) {
+            refresh();
+            return;
+          }
+          item.meta.title = t;
+          await ws.writeItem(route.dir, route.fileName, item.meta, item.body);
           refresh();
         },
         setTaskDue: async (index, dateIso) => {

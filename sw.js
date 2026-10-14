@@ -1,7 +1,8 @@
 // Oceanview service worker (R-18): offline shell.
-// Strategy: cache-first for app shell (same-origin GET), network-only for
-// everything else. The workspace files come from the File System Access API,
-// never from the network — the SW does not touch them.
+// Strategy: network-first for JS/CSS/HTML (so updates reach users without a
+// manual SW bump), falling back to the cache when offline. The workspace
+// files come from the File System Access API, never from the network — the
+// SW does not touch them.
 const CACHE = 'oceanview-v1';
 const SHELL = [
   '/',
@@ -47,15 +48,14 @@ self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
   if (event.request.method !== 'GET' || url.origin !== self.location.origin) return;
   event.respondWith(
-    caches.match(event.request, { ignoreSearch: url.pathname === '/' }).then((hit) => {
-      if (hit) return hit;
-      return fetch(event.request).then((response) => {
-        if (response.ok && url.pathname.startsWith('/src/') || url.pathname === '/styles.css' || url.pathname === '/index.html') {
+    fetch(event.request)
+      .then((response) => {
+        if (response.ok) {
           const copy = response.clone();
           caches.open(CACHE).then((cache) => cache.put(event.request, copy));
         }
         return response;
-      });
-    }),
+      })
+      .catch(() => caches.match(event.request, { ignoreSearch: url.pathname === '/' })),
   );
 });
