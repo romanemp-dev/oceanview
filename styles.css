@@ -216,6 +216,8 @@ input[type="date"].due-chip.overdue { background: var(--danger-soft); color: var
   margin-bottom: 20px;
 }
 .changes-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+
+.trash-list { list-style: none; padding: 0; display: grid; gap: 10px; }
 .changes-list { list-style: none; margin: 10px 0 0; padding: 0; display: grid; gap: 6px; }
 .changes-item { font-size: 13.5px; }
 .changes-line { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }

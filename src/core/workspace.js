@@ -62,6 +62,16 @@ function welcomeItem() {
   );
 }
 
+function uniqueName(existing, fileName) {
+  if (!existing.has(fileName)) return fileName;
+  const dot = fileName.lastIndexOf('.');
+  const base = dot > 0 ? fileName.slice(0, dot) : fileName;
+  const ext = dot > 0 ? fileName.slice(dot) : '';
+  let n = 2;
+  while (existing.has(`${base}-${n}${ext}`)) n++;
+  return `${base}-${n}${ext}`;
+}
+
 export function createWorkspaceModel(adapter, hooks = null) {
   async function listStacks() {
     const entries = await adapter.listDir(STACKS_DIR);
@@ -126,14 +136,15 @@ export function createWorkspaceModel(adapter, hooks = null) {
       }
     },
 
-    // Soft delete (D-015): items and stacks move to .desk/trash/<timestamp>/.
-    // Nothing is permanently deleted in v1.
+    // Soft delete (D-015): items and stacks move to .desk/trash/<stamp>/ with
+    // an _origin.json manifest so they can be restored.
     async trashItem(dir, fileName) {
       const stamp = new Date().toISOString().replace(/[:.]/g, '-');
       const target = `${DESK_DIR}/trash/${stamp}`;
       await adapter.ensureDir(target);
       const contents = await adapter.readFile(`${dir}/${fileName}`);
       await adapter.writeFile(`${target}/${fileName}`, contents);
+      await adapter.writeFile(`${target}/_origin.json`, JSON.stringify({ kind: 'item', dir, fileName }, null, 2) + '\n');
       await adapter.deleteFile(`${dir}/${fileName}`);
       await hooks?.onDelete?.(`${dir}/${fileName}`);
     },
@@ -148,9 +159,81 @@ export function createWorkspaceModel(adapter, hooks = null) {
         await adapter.writeFile(`${target}/${entry.name}`, await adapter.readFile(`${STACKS_DIR}/${name}/${entry.name}`));
         await hooks?.onDelete?.(`${STACKS_DIR}/${name}/${entry.name}`);
       }
+      await adapter.writeFile(`${target}/_origin.json`, JSON.stringify({ kind: 'stack', name }, null, 2) + '\n');
       await adapter.deleteDir(`${STACKS_DIR}/${name}`);
       const config = await readConfig();
       delete config.stacks?.[name];
+      await writeConfig(config);
+    },
+
+    async listTrash() {
+      let entries;
+      try {
+        entries = await adapter.listDir(`${DESK_DIR}/trash`);
+      } catch {
+        return [];
+      }
+      const out = [];
+      for (const e of entries.filter((x) => x.kind === 'directory')) {
+        let origin = null;
+        try {
+          origin = JSON.parse(await adapter.readFile(`${DESK_DIR}/trash/${e.name}/_origin.json`));
+        } catch {
+          // Legacy entry without a manifest — restore defaults to inbox/.
+        }
+        const files = (await adapter.listDir(`${DESK_DIR}/trash/${e.name}`))
+          .filter((f) => f.kind === 'file' && f.name.endsWith('.md'))
+          .map((f) => f.name);
+        out.push({ dirName: e.name, origin, files });
+      }
+      return out;
+    },
+
+    async restoreTrashEntry(dirName) {
+      let origin = null;
+      try {
+        origin = JSON.parse(await adapter.readFile(`${DESK_DIR}/trash/${dirName}/_origin.json`));
+      } catch {
+        // Legacy entry — restore to inbox.
+      }
+      const files = (await adapter.listDir(`${DESK_DIR}/trash/${dirName}`))
+        .filter((f) => f.kind === 'file' && f.name.endsWith('.md'))
+        .map((f) => f.name);
+      const targetDir = origin?.kind === 'stack'
+        ? `${STACKS_DIR}/${origin.name}`
+        : origin?.dir && (origin.dir === INBOX || origin.dir.startsWith(`${STACKS_DIR}/`))
+          ? origin.dir
+          : INBOX;
+      await adapter.ensureDir(targetDir);
+      const existing = new Set((await adapter.listDir(targetDir)).map((x) => x.name));
+      for (const f of files) {
+        const name = uniqueName(existing, f);
+        const contents = await adapter.readFile(`${DESK_DIR}/trash/${dirName}/${f}`);
+        await adapter.writeFile(`${targetDir}/${name}`, contents);
+        await hooks?.onWrite?.(`${targetDir}/${name}`, contents);
+        existing.add(name);
+      }
+      if (origin?.kind === 'stack') {
+        const config = await readConfig();
+        config.stacks = config.stacks ?? {};
+        if (!config.stacks[origin.name]) {
+          config.stacks[origin.name] = {};
+          await writeConfig(config);
+        }
+      }
+      await adapter.deleteDir(`${DESK_DIR}/trash/${dirName}`);
+    },
+
+    async purgeTrashEntry(dirName) {
+      await adapter.deleteDir(`${DESK_DIR}/trash/${dirName}`);
+    },
+
+    async setStackAgents(name, agents) {
+      const config = await readConfig();
+      config.stacks = config.stacks ?? {};
+      config.stacks[name] = config.stacks[name] ?? {};
+      if (agents.length) config.stacks[name].agents = agents;
+      else delete config.stacks[name].agents;
       await writeConfig(config);
     },
 

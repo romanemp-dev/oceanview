@@ -63,7 +63,7 @@ test('workspace: trashItem moves file to .desk/trash', async () => {
   assert.equal(trashEntries.length, 1);
   const dirName = trashEntries[0].name;
   const files = await adapter.listDir(`${DESK_DIR}/trash/${dirName}`);
-  assert.deepEqual(files.map((e) => e.name), [f]);
+  assert.deepEqual(files.map((e) => e.name).sort(), ['_origin.json', f]);
 });
 
 test('workspace: trashStack archives all files and cleans config', async () => {

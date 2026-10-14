@@ -5,6 +5,7 @@ import { renderDeskView, promptName } from './ui/desk.js';
 import { renderItemView } from './ui/item.js';
 import { setupQuickCapture, captureItemText } from './ui/capture.js';
 import { setupSearch } from './ui/search.js';
+import { renderTrashView } from './ui/trash.js';
 import { renderReviewView } from './ui/review.js';
 import { readActivityEntries, unreviewedCount } from './core/activity.js';
 import { scanItemFiles, loadIndex, saveIndex, buildBaselineFromScan, diffAgainstIndex, createIndexHooks, stackOfPath, itemDirOfPath, INDEX_PATH } from './core/changes.js';
@@ -21,6 +22,7 @@ const els = {
   connect: document.getElementById('btn-connect'),
   restore: document.getElementById('btn-restore'),
   disconnect: document.getElementById('btn-disconnect'),
+  trash: document.getElementById('btn-trash'),
   desk: document.getElementById('desk'),
 };
 
@@ -85,7 +87,34 @@ async function refresh() {
   }
   if (route.view === 'desk') await renderDesk();
   else if (route.view === 'review') await renderReview();
+  else if (route.view === 'trash') await renderTrash();
   else await renderItem();
+}
+
+async function renderTrash() {
+  els.desk.innerHTML = '';
+  els.desk.appendChild(
+    renderTrashView({
+      entries: await ws.listTrash(),
+      handlers: {
+        backToDesk: () => {
+          route = { view: 'desk' };
+          refresh();
+        },
+        restore: async (entry) => {
+          await ws.restoreTrashEntry(entry.dirName);
+          route = { view: 'desk' };
+          refresh();
+        },
+        purge: async (entry) => {
+          const ok = await confirmDialog('Delete forever?', `This permanently removes ${entry.files.length} file(s) from .desk/trash. This cannot be undone.`);
+          if (!ok) return;
+          await ws.purgeTrashEntry(entry.dirName);
+          refresh();
+        },
+      },
+    }),
+  );
 }
 async function renderReview() {
   els.desk.innerHTML = '';
@@ -159,14 +188,26 @@ async function renderDesk() {
   );
 }
 
-function deskHandlers() {
-  return {
+function deskHandlers() {  return {
     openItem: (dir, fileName) => {
       route = { view: 'item', dir, fileName, editing: false };
       refresh();
     },
     reviewStack: (stackName) => {
       route = { view: 'review', stack: stackName };
+      refresh();
+    },
+    openTrash: () => {
+      route = { view: 'trash' };
+      refresh();
+    },
+    setAgents: async (stackName) => {
+      const config = await ws.readConfig();
+      const current = (config.stacks?.[stackName]?.agents ?? []).join(', ');
+      const raw = await promptName(`Agents for “${stackName}” (comma-separated, empty to clear)`, current);
+      if (raw === null) return;
+      const agents = raw.split(',').map((s) => s.trim()).filter(Boolean);
+      await ws.setStackAgents(stackName, agents);
       refresh();
     },
     moveItemTo: async (fromDir, fileName, toDir) => {
@@ -512,6 +553,7 @@ async function connectFlow(handle) {
   route = { view: 'desk' };
   setStatus(`Workspace: ${handle.name}`);
   show(els.disconnect);
+  show(els.trash);
   hide(els.connect);
   hide(els.restore);
   setupQuickCapture({
@@ -547,6 +589,7 @@ async function onDisconnect() {
   adapter = null;
   ws = null;
   hide(els.disconnect);
+  hide(els.trash);
   renderNotConnected();
 }
 
@@ -593,5 +636,9 @@ async function init() {
 els.connect.addEventListener('click', onConnect);
 els.restore.addEventListener('click', onRestore);
 els.disconnect.addEventListener('click', onDisconnect);
+els.trash.addEventListener('click', () => {
+  route = { view: 'trash' };
+  refresh();
+});
 
 init();

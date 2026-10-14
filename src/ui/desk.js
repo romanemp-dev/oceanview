@@ -85,6 +85,7 @@ export function renderDeskView({ desk, handlers }) {
     if (agents.length) {
       title.appendChild(el('span', 'agent-chip', `⚑ ${agents.join(', ')}`));
     }
+    title.appendChild(actionButton('⚙', `Edit agents for “${stack.name}”`, () => handlers.setAgents(stack.name)));
     title.appendChild(actionButton('✎', `Rename stack “${stack.name}”`, () => handlers.renameStack(stack.name)));
     title.appendChild(actionButton('🗑', `Delete stack “${stack.name}” (moves files to .desk/trash)`, () => handlers.deleteStack(stack.name)));
     card.appendChild(title);
