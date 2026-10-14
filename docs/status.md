@@ -22,6 +22,12 @@ In progress
 
 Nothing yet.
 
+Wave 5 UX (commit 45bc916): silent saves from the reader — checkbox toggles
+and due dates persist in place with a brief "saved" chip, no edit mode;
+notes get an inline "+ Add text" tail editor and click-to-rename titles;
+welcome item moved to inbox/; service worker switched to network-first so
+updates reach the browser without manual cache bumps.
+
 Wave 5 done (commit d797f46): trash management (manifest _origin.json,
 restore with stack/folder recreation and name dedupe, purge with explicit
 confirm, topbar Trash view) and full R-13 (per-stack agent assignment via
