@@ -22,6 +22,12 @@ In progress
 
 Nothing yet.
 
+Wave 6 done — nested stacks (folder-tree model): stacks may contain sub-stacks
+at any depth (stacks/<stack>/<sub>/...), the desk shows only the top level,
+clicking a stack with children opens that level with breadcrumbs; create/
+rename/delete/agents/trash all work with nested paths; trash preserves the
+sub-tree structure. Conventions unchanged (a sub-stack is just a folder).
+
 Wave 5 UX (commit 45bc916): silent saves from the reader — checkbox toggles
 and due dates persist in place with a brief "saved" chip, no edit mode;
 notes get an inline "+ Add text" tail editor and click-to-rename titles;
