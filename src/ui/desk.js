@@ -27,6 +27,29 @@ function actionButton(text, title, onClick, cls = 'btn subtle small') {
 
 export function renderDeskView({ desk, handlers }) {
   const root = el('div');
+
+  // Breadcrumbs when inside a sub-stack (Wave 6).
+  if (desk.stackPath) {
+    const crumbs = el('div', 'crumbs');
+    const parts = desk.stackPath.split('/');
+    const rootBtn = el('button', 'crumb-link', 'Desk');
+    rootBtn.type = 'button';
+    rootBtn.addEventListener('click', () => handlers.openStackPath(''));
+    crumbs.appendChild(rootBtn);
+    parts.forEach((part, i) => {
+      crumbs.appendChild(el('span', 'crumb-sep', '›'));
+      const p = parts.slice(0, i + 1).join('/');
+      if (i === parts.length - 1) crumbs.appendChild(el('span', 'crumb-here', part));
+      else {
+        const b = el('button', 'crumb-link', part);
+        b.type = 'button';
+        b.addEventListener('click', () => handlers.openStackPath(p));
+        crumbs.appendChild(b);
+      }
+    });
+    root.appendChild(crumbs);
+  }
+
   root.appendChild(renderTodayTray({ desk, handlers }));
   const grid = el('div', 'grid');
 
@@ -64,11 +87,19 @@ export function renderDeskView({ desk, handlers }) {
   }
   grid.appendChild(inbox);
 
-  // Stack cards.
+  // Stack cards (a stack with sub-stacks opens like a folder).
   for (const stack of desk.stacks) {
-    const card = el('section', 'card');
+    const card = el('section', 'card stack-card');
     const title = el('h3');
-    title.appendChild(el('span', 'stack-name', stack.name));
+    if (stack.subStacks?.length) {
+      const open = el('button', 'stack-open', `${stack.name} ›`);
+      open.type = 'button';
+      open.title = `Open “${stack.name}” (${stack.subStacks.length} sub-stack${stack.subStacks.length > 1 ? 's' : ''}, ${stack.items.length} item${stack.items.length === 1 ? '' : 's'})`;
+      open.addEventListener('click', () => handlers.openStackPath(stack.path));
+      title.appendChild(open);
+    } else {
+      title.appendChild(el('span', 'stack-name', stack.name));
+    }
     if (stack.hasOverdue) title.appendChild(badge('overdue', 'pill overdue'));
     else if (stack.hasDueToday) title.appendChild(badge('due today', 'pill today'));
     if (stack.externalChanges?.length) {
@@ -98,15 +129,15 @@ export function renderDeskView({ desk, handlers }) {
     if (stack.items.length > 5) {
       card.appendChild(el('div', 'notice', `…and ${stack.items.length - 5} more`));
     }
-    card.appendChild(actionButton('+ Add item', `New item in “${stack.name}”`, () => handlers.addItem(stack.name), 'btn small'));
+    card.appendChild(actionButton('+ Add item', `New item in “${stack.name}”`, () => handlers.addItem(stack.path), 'btn small'));
     grid.appendChild(card);
   }
 
   // New stack card.
   const newCard = el('button', 'card add-card');
   newCard.type = 'button';
-  newCard.textContent = '+ New stack';
-  newCard.addEventListener('click', handlers.createStack);
+  newCard.textContent = desk.stackPath ? `+ New sub-stack in “${desk.stackPath.split('/').pop()}”` : '+ New stack';
+  newCard.addEventListener('click', () => handlers.createStack(desk.stackPath));
   grid.appendChild(newCard);
 
   root.appendChild(grid);

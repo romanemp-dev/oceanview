@@ -62,6 +62,23 @@ function welcomeItem() {
   );
 }
 
+// Recursively archive a stack directory (with nested sub-stacks) into the
+// trash target, preserving relative structure.
+function makeArchiveStackDirRecursive(adapter, hooks) {
+  return async function archive(srcDir, targetDir) {
+    await adapter.ensureDir(targetDir);
+    for (const entry of await adapter.listDir(srcDir)) {
+      if (entry.kind === 'directory') {
+        await archive(`${srcDir}/${entry.name}`, `${targetDir}/${entry.name}`);
+      } else if (entry.name.endsWith('.md')) {
+        const contents = await adapter.readFile(`${srcDir}/${entry.name}`);
+        await adapter.writeFile(`${targetDir}/${entry.name}`, contents);
+        await hooks?.onDelete?.(`${srcDir}/${entry.name}`);
+      }
+    }
+  };
+}
+
 function uniqueName(existing, fileName) {
   if (!existing.has(fileName)) return fileName;
   const dot = fileName.lastIndexOf('.');
@@ -72,7 +89,10 @@ function uniqueName(existing, fileName) {
   return `${base}-${n}${ext}`;
 }
 
-export function createWorkspaceModel(adapter, hooks = null) {  async function listStacks() {
+export function createWorkspaceModel(adapter, hooks = null) {
+  const archiveStackDirRecursive = makeArchiveStackDirRecursive(adapter, hooks);
+
+  async function listStacks() {
     const entries = await adapter.listDir(STACKS_DIR);
     return entries.filter((e) => e.kind === 'directory').map((e) => e.name).sort();
   }
@@ -149,16 +169,14 @@ export function createWorkspaceModel(adapter, hooks = null) {  async function li
     },
 
     async trashStack(name) {
+      // name may be a nested path: 'Work/Client X'. Directories under it move
+      // to trash recursively (adapter.deleteDir handles nesting on restore of
+      // flat files; nested sub-stack files are preserved with their relative
+      // paths in the trash folder).
       const stamp = new Date().toISOString().replace(/[:.]/g, '-');
-      const target = `${DESK_DIR}/trash/${stamp}-${name}`;
-      const entries = await adapter.listDir(`${STACKS_DIR}/${name}`);
-      await adapter.ensureDir(target);
-      for (const entry of entries) {
-        if (entry.kind !== 'file') continue;
-        await adapter.writeFile(`${target}/${entry.name}`, await adapter.readFile(`${STACKS_DIR}/${name}/${entry.name}`));
-        await hooks?.onDelete?.(`${STACKS_DIR}/${name}/${entry.name}`);
-      }
-      await adapter.writeFile(`${target}/_origin.json`, JSON.stringify({ kind: 'stack', name }, null, 2) + '\n');
+      const base = String(name).split('/').pop();
+      const target = `${DESK_DIR}/trash/${stamp}-${base}`;
+      await archiveStackDirRecursive(`${STACKS_DIR}/${name}`, target);      await adapter.writeFile(`${target}/_origin.json`, JSON.stringify({ kind: 'stack', name }, null, 2) + '\n');
       await adapter.deleteDir(`${STACKS_DIR}/${name}`);
       const config = await readConfig();
       delete config.stacks?.[name];
@@ -238,21 +256,34 @@ export function createWorkspaceModel(adapter, hooks = null) {  async function li
 
     listStacks,
 
-    async readDesk() {
+    async readDesk(path = '') {
+      // Nested stacks (Wave 6): stacks may contain sub-stacks (folders) at any
+      // depth. readDesk() returns one level; the UI navigates like a folder tree.
+      const clean = String(path).replace(/^\/+|\/+$/g, '');
+      const base = clean ? `${STACKS_DIR}/${clean}` : STACKS_DIR;
+      const entries = await adapter.listDir(base);
       const stacks = [];
-      for (const name of await listStacks()) {
-        const files = await listItemFiles(`${STACKS_DIR}/${name}`);
+      for (const e of entries.filter((x) => x.kind === 'directory').map((x) => x.name).sort()) {
+        const relPath = clean ? `${clean}/${e}` : e;
+        const dir = `${base}/${e}`;
+        const files = await listItemFiles(dir);
         const items = [];
         for (const f of files) {
-          const item = await readItem(`${STACKS_DIR}/${name}`, f);
+          const item = await readItem(dir, f);
           const today = todayIso();
           item.hasOverdue = item.tasks.some((t) => !t.done && isOverdue(t.due, today));
           item.hasDueToday = item.tasks.some((t) => !t.done && isDueToday(t.due, today));
           items.push(item);
         }
+        // Sub-stacks of this stack (children only).
+        const subEntries = await adapter.listDir(dir);
+        const subStacks = subEntries.filter((x) => x.kind === 'directory').map((x) => x.name).sort();
         stacks.push({
-          name,
+          name: e,
+          path: relPath,
+          depth: relPath.split('/').length - 1,
           items,
+          subStacks,
           hasOverdue: items.some((i) => i.hasOverdue),
           hasDueToday: items.some((i) => i.hasDueToday),
         });
@@ -262,19 +293,22 @@ export function createWorkspaceModel(adapter, hooks = null) {  async function li
       const inboxItems = [];
       for (const f of inboxFiles) inboxItems.push(await readItem(INBOX, f));
 
-      return { stacks, inboxItems };
+      return { stacks, inboxItems, stackPath: clean };
     },
 
     readItem,
     writeItem,
 
-    async createStack(name) {
+    async createStack(name, parentPath = '') {
       if (!/^[^/\\]+$/.test(name)) throw new Error(`Invalid stack name: ${name}`);
-      await adapter.ensureDir(`${STACKS_DIR}/${name}`);
+      const parent = String(parentPath).replace(/^\/+|\/+$/g, '');
+      const rel = parent ? `${parent}/${name}` : name;
+      await adapter.ensureDir(`${STACKS_DIR}/${rel}`);
       const config = await readConfig();
       config.stacks = config.stacks ?? {};
-      if (!config.stacks[name]) config.stacks[name] = {};
+      if (!config.stacks[rel]) config.stacks[rel] = {};
       await writeConfig(config);
+      return rel;
     },
 
     async deleteStack(name) {

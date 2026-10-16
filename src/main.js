@@ -28,7 +28,7 @@ const els = {
 
 let adapter = null;
 let ws = null;
-let route = { view: 'desk' }; // {view:'desk'} | {view:'item', dir, fileName, editing} | {view:'review', stack}
+let route = { view: 'desk', stackPath: '' }; // {view:'desk', stackPath} | {view:'item', dir, fileName, editing} | {view:'review', stack} | {view:'trash'}
 let lastDesk = null;
 let changeTracker = null; // { getIndex, isReady, save, index } — external change detection (R-19)
 
@@ -144,7 +144,7 @@ async function renderReview() {
 }
 
 async function renderDesk() {
-  const desk = await ws.readDesk();
+  const desk = await ws.readDesk(route.stackPath || '');
   lastDesk = desk;
   searchBox.setDesk(desk);
   // External change detection (R-19): fingerprint scan vs index.
@@ -188,9 +188,14 @@ async function renderDesk() {
   );
 }
 
-function deskHandlers() {  return {
+function deskHandlers() {
+  return {
     openItem: (dir, fileName) => {
       route = { view: 'item', dir, fileName, editing: false };
+      refresh();
+    },
+    openStackPath: (path) => {
+      route = { view: 'desk', stackPath: path || '' };
       refresh();
     },
     reviewStack: (stackName) => {
@@ -201,43 +206,49 @@ function deskHandlers() {  return {
       route = { view: 'trash' };
       refresh();
     },
-    setAgents: async (stackName) => {
+    setAgents: async (stackPath) => {
       const config = await ws.readConfig();
-      const current = (config.stacks?.[stackName]?.agents ?? []).join(', ');
-      const raw = await promptName(`Agents for “${stackName}” (comma-separated, empty to clear)`, current);
+      const current = (config.stacks?.[stackPath]?.agents ?? []).join(', ');
+      const raw = await promptName(`Agents for “${stackPath.split('/').pop()}” (comma-separated, empty to clear)`, current);
       if (raw === null) return;
       const agents = raw.split(',').map((s) => s.trim()).filter(Boolean);
-      await ws.setStackAgents(stackName, agents);
+      await ws.setStackAgents(stackPath, agents);
       refresh();
     },
     moveItemTo: async (fromDir, fileName, toDir) => {
       await ws.moveItem(fromDir, fileName, toDir);
       refresh();
     },
-    createStack: async () => {
-      const name = await promptName('New stack name');
+    createStack: async (parentPath = '') => {
+      const name = await promptName(parentPath ? `New sub-stack in “${String(parentPath).split('/').pop()}”` : 'New stack name');
       if (!name) return;
-      await ws.createStack(name);
+      await ws.createStack(name, parentPath || '');
       refresh();
     },
-    renameStack: async (oldName) => {
+    renameStack: async (oldPath) => {
+      const oldName = String(oldPath).split('/').pop();
       const name = await promptName(`Rename stack “${oldName}”`, oldName);
       if (!name || name === oldName) return;
-      await ws.renameStack(oldName, name);
+      await ws.renameStack(oldPath, name);
+      route = { view: 'desk', stackPath: '' };
       refresh();
     },
-    deleteStack: async (name) => {
-      const ok = await confirmDialog(`Delete stack “${name}”?`, 'All its items move to .desk/trash/ inside the workspace. Nothing is permanently deleted.');
+    deleteStack: async (path) => {
+      const name = String(path).split('/').pop();
+      const ok = await confirmDialog(`Delete stack “${name}”?`, 'All its items and sub-stacks move to .desk/trash/ inside the workspace. Nothing is permanently deleted.');
       if (!ok) return;
-      await ws.trashStack(name);
+      await ws.trashStack(path);
+      route = { view: 'desk', stackPath: '' };
       refresh();
     },
-    addItem: async (stackName) => {
+    addItem: async (stackPath) => {
+      const stackName = String(stackPath).split('/').pop();
       const title = await promptName(`New item in “${stackName}”`);
       if (!title) return;
       const type = await pickItemType();
-      const fileName = await ws.createItem(`${STACKS_DIR}/${stackName}`, type, title);
-      route = { view: 'item', dir: `${STACKS_DIR}/${stackName}`, fileName, editing: true };
+      const dir = stackPath.startsWith(`${STACKS_DIR}/`) ? stackPath : `${STACKS_DIR}/${stackPath}`;
+      const fileName = await ws.createItem(dir, type, title);
+      route = { view: 'item', dir, fileName, editing: true };
       refresh();
     },
   };
@@ -359,7 +370,7 @@ async function renderItem() {
           refresh();
         },
         moveItem: async () => {
-          const desk = await ws.readDesk();
+          const desk = await ws.readDesk(route.stackPath || '');
           const options = [
             { dir: INBOX, label: 'Inbox' },
             ...desk.stacks.map((s) => ({ dir: `${STACKS_DIR}/${s.name}`, label: `Stack: ${s.name}` })),
