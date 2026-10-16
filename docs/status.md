@@ -22,6 +22,12 @@ In progress
 
 Nothing yet.
 
+visual-spec.md added (v1.0, user-authored): presentation layer for R-17 —
+Three.js scene, camera rig, working zone, panorama pipeline, animation table.
+R-17 unblocked and set to planned. Decisions D-017…D-022 recorded
+(Three.js ESM vendored, DOM overlay, capture stack picker, theme presets
+minimal/oceanview, working-zone limit 5+N, mobile/XR phasing).
+
 Wave 6 done — nested stacks (folder-tree model): stacks may contain sub-stacks
 at any depth (stacks/<stack>/<sub>/...), the desk shows only the top level,
 clicking a stack with children opens that level with breadcrumbs; create/
@@ -96,15 +102,15 @@ desk<->item routing.
 
 Next
 
-All spec items are done or explicitly deferred except R-17 (final visual
-theme) — blocked on the user's visual spec.
-Suggested follow-ups: real-agent trial run of docs/workspace-conventions.md
-(S3/S4), trash restore/purge UI (D-015), push to origin, v1.0 tag.
+Build agent: implement R-17 per docs/visual-spec.md — vendor Three.js,
+CameraRig (mouse), scene HOME (working zone + stacks), theme presets
+minimal/oceanview; start the panorama pipeline track (A0) early.
+Suggested follow-ups: capture stack picker (D-019), working-zone limit (D-021).
 
 Blocked
 
-R-17 (final visual theme) — waiting on the user's visual spec. Everything
-else in spec v1.0 is done; MVP (all P0) complete.
+R-17 (final visual theme) — planned, requirements in docs/visual-spec.md.
+Everything else in spec v1.0 is done; MVP (all P0) complete.
 
 Known issues
 

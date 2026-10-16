@@ -89,6 +89,22 @@ planning detail; authoritative requirements and statuses stay in spec.md.
 - R-17 final visual theme — blocked on the user's visual spec.
 - R-18 PWA packaging (manifest + service worker, offline shell).
 
+## Wave 7 — Visual scene (R-17, per docs/visual-spec.md)
+- Vendor Three.js (ESM importmap, vendored copy, no bundler — D-017).
+- CameraRig abstraction (mouse v1; gyro/xr-head later — D-022): yaw ±22°,
+  pitch anchors (window/table), dead zone ~12%, exp lerp, welcome drift.
+- Scene HOME: panorama → window frame → desk → objects; stacks as paper piles
+  with ribbon accents from config; parallax toward near layers.
+- Working zone = Today tray surface: due-today + overdue, limit 5 + "+N"
+  mini-stack (D-021); always-visible blank sheet for capture (R-08, D-019
+  stack picker).
+- DOM overlay for all editing; scene renders labels only (D-018).
+- Theme presets: minimal (neutral fallback) / oceanview (full scene) —
+  parameters in config.json, no hardcoded styles (D-020).
+- Animation set per visual-spec §6 (stack build/fly/mass-move/depth/welcome).
+- A0 track: panorama pipeline (3:1–4:1 sector image, 4–6 time-of-day keyframes,
+  live sprites) — longest content path, starts early.
+
 ## Milestones
 - M1 = Waves 0–1: usable desk (browse, edit, organize markdown).
 - M2 = Wave 2: daily capture + task surface.

@@ -19,7 +19,7 @@ R-13	Agent assignment per stack (stored in .desk/config.json); v1 = display only
 R-14	Full-text search across items	P1	planned
 R-15	Slides preview (Marp-style markdown)	P1	planned
 R-16	Double-click local server script, if file:// limits block any feature	P1	planned
-R-17	Final visual theme (blocked on user's visual spec)	P1	blocked
+R-17	Final visual theme (spec: docs/visual-spec.md; Three.js scene + themes, see D-017…D-022)	P1	planned
 R-18	PWA packaging (installable, offline)	P2	planned
 Acceptance criteria (the risky P0s)
 

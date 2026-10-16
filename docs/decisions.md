@@ -87,3 +87,51 @@ Consequences: agents are no longer required to be honest about what they
 touched — the desk sees it anyway; every refresh costs one read of all item
 files (fine at workspace scale; index.json stays derived and safe to delete);
 first run builds a baseline so pre-existing files are not flagged.
+
+D-017
+
+Context: visual-spec.md (v1.0) defines the presentation layer for R-17.
+Decision: presentation layer = vanilla Three.js as ESM via importmap, vendored
+into the repository (offline requirement). No bundler. Reconsidering Vite
+requires a new decision with a real need (shader pipeline etc.).
+Consequences: zero build step preserved; vendor directory adds repo weight;
+importmap pinned to the vendored copy.
+
+D-018
+
+Decision: DOM overlay handles all editing (capture, editor, search,
+suggestions, review); the 3D scene renders only short labels (counters,
+nameplates) via canvas textures.
+Consequences: no text editing inside WebGL; accessibility and input reuse stay
+DOM-native; scene code stays presentational.
+
+D-019
+
+Decision: quick capture dialog gains an optional stack picker (extends R-08);
+no selection → inbox/. Spec-level change recorded here per R-08 scope.
+Consequences: capture can target a stack directly; inbox remains the default
+path; suggestion flow still applies to inbox items only.
+
+D-020
+
+Decision: R-17 is unblocked by visual-spec.md; theming = preset system with
+`minimal` (neutral, no window/panorama — dev/fallback) and `oceanview` (full
+scene). All visual parameters live in config, no hardcoded styles (per
+product.md).
+Consequences: the environment layer (window/panorama) is switchable, doubling
+as the low-end fallback; theme presets are data, not code forks.
+
+D-021
+
+Decision: working zone (Today tray surface) shows a visible limit of 5 task
+sheets + a "+N" mini-stack at the zone edge.
+Consequences: zone stays calm under load; overflow is one click away;
+spec R-10 logic unchanged (full list remains derivable).
+
+D-022
+
+Decision: mobile webview and WebXR are phases 2–3; storage there swaps the
+storage adapter (OPFS or sync backend) following the architecture migration
+path; CameraRig input sources (gyro, xr-head) follow the same phasing.
+Consequences: v1 stays desktop mouse-only; no adapter API changes required
+now; phase 2/3 work is additive.
