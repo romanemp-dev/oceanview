@@ -16,6 +16,14 @@
 </head>
 <body>
   <canvas id="stage"></canvas>
+  <div id="err" style="display:none;position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);max-width:70vw;background:#3a1d1d;color:#ffd7d7;padding:16px 20px;border-radius:12px;font:13px/1.5 -apple-system,sans-serif;white-space:pre-wrap;"></div>
+  <script>
+    window.addEventListener('error', (e) => {
+      const box = document.getElementById('err');
+      box.style.display = 'block';
+      box.textContent = 'Scene failed to load:\n' + (e.message || e.error?.message || e.error || 'unknown error');
+    });
+  </script>
   <div class="hud">
     <b>M-rig demo</b> — move the cursor: yaw ±22°, pitch anchors (up = window, down = desk), dead zone 12%, exp lerp.<br>
     Welcome drift plays on load (~1.5 s) and is interrupted by any input.

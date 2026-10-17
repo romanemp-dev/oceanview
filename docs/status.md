@@ -22,6 +22,13 @@ In progress
 
 Nothing yet.
 
+HANDOFF.md added (repo root): full handoff for external AI agents — project
+description, file map, data model, architecture, current stage, ordered next
+steps, verification checklist.
+Fixed (2026-10-17): m-rig blank page — vendor/three was missing three.core.js
+(r171 module split); vendored + camera pitch sign corrected; m-rig now shows
+an error overlay on module failures.
+
 visual-spec.md added (v1.0, user-authored): presentation layer for R-17 —
 Three.js scene, camera rig, working zone, panorama pipeline, animation table.
 R-17 unblocked and set to planned. Decisions D-017…D-022 recorded
