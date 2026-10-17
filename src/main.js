@@ -8,6 +8,7 @@ import { setupSearch } from './ui/search.js';
 import { renderTrashView } from './ui/trash.js';
 import { renderReviewView } from './ui/review.js';
 import { readActivityEntries, unreviewedCount } from './core/activity.js';
+import { mountVisualScene, visualEnabled } from './visual/mount.js';
 import { scanItemFiles, loadIndex, saveIndex, buildBaselineFromScan, diffAgainstIndex, createIndexHooks, stackOfPath, itemDirOfPath, INDEX_PATH } from './core/changes.js';
 
 // PWA (R-18): register the offline shell service worker.
@@ -73,6 +74,8 @@ function renderBanner(issues) {
   els.desk.before(banner);
 }
 
+let scene = null;
+
 async function refresh() {
   if (!ws) return;
   const { issues } = await ws.validate();
@@ -85,8 +88,14 @@ async function refresh() {
     els.desk.appendChild(section);
     return;
   }
-  if (route.view === 'desk') await renderDesk();
-  else if (route.view === 'review') await renderReview();
+  if (route.view === 'desk') {
+    const desk = await ws.readDesk(route.stackPath || '');
+    lastDesk = desk;
+    if (scene) scene.update(desk);
+    await renderDesk();
+    return;
+  }
+  if (route.view === 'review') await renderReview();
   else if (route.view === 'trash') await renderTrash();
   else await renderItem();
 }
@@ -144,7 +153,7 @@ async function renderReview() {
 }
 
 async function renderDesk() {
-  const desk = await ws.readDesk(route.stackPath || '');
+  const desk = lastDesk ?? (await ws.readDesk(route.stackPath || ''));
   lastDesk = desk;
   searchBox.setDesk(desk);
   // External change detection (R-19): fingerprint scan vs index.
@@ -599,12 +608,18 @@ async function connectFlow(handle) {
     isReady: () => changeTrackerReady(),
     save: async () => { if (changeTracker) await saveIndex(adapter, changeTracker.index); },
   }));
-  route = { view: 'desk' };
+  route = { view: 'desk', stackPath: '' };
   setStatus(`Workspace: ${handle.name}`);
   show(els.disconnect);
   show(els.trash);
   hide(els.connect);
   hide(els.restore);
+  // Visual scene (Wave 7): mounts only when enabled via localStorage.
+  if (visualEnabled() && !scene) {
+    const canvas = document.getElementById('scene-canvas');
+    canvas.classList.remove('hidden');
+    scene = mountVisualScene({ canvas, onCaptureClick: () => document.querySelector('.capture-fab')?.click() });
+  }
   setupQuickCapture({
     onCapture: async (line1, line2) => {
       const { meta, body } = captureItemText(line1, line2);

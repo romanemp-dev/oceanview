@@ -1,97 +1,98 @@
 # Visual Spec — Oceanview (v1.0)
 
-_Статус: реализует R-17, дополняет spec.md v1.0. По доменным вопросам источник истины — spec.md/architecture.md. При противоречиях с визуалом — обсуждение через decisions.md._
+_English translation of the user-authored spec (the Russian original lives in git history)._
+_Status: implements R-17, extends spec.md v1.0. For domain questions the source of truth is spec.md / architecture.md. Visual conflicts are discussed via decisions.md._
 
-## 1. Концепция
+## 1. Concept
 
-Oceanview — виртуальный рабочий стол от первого лица. Стол придвинут вплотную к окну, за окном — вид на приморскую деревню (деревня, море, небо) — визуальная «цель» для фокусировки. На столе стопки заметок (метафора стеков файлов macOS), перед пользователем — рабочая зона (Today tray). Стиль — Макото Синкай: реализм + dreamy, детализация не критична, важна атмосфера. Ключевая фишка — живая камера: пользователь «крутит головой».
+Oceanview is a first-person virtual desk. The desk sits flush against a window; beyond it — a seaside village view (village, sea, sky) — the visual "focal target". On the desk: stacks of notes (the macOS file-stack metaphor); in front of the user: the working zone (Today tray). Style: Makoto Shinkai — realism + dreamy; detail fidelity is not critical, atmosphere is. The key feature is the living camera: the user "turns their head".
 
-Кодовое совпадение названия (Oceanview) и вида из окна — осознанная фиксация концепта.
+The code-name match (Oceanview ↔ the view from the window) is a deliberate concept lock.
 
-## 2. Технический слой представления
+## 2. Presentation layer
 
-- **Vanilla Three.js как ESM через importmap**, вендоренный в репозиторий (офлайн-требование). Без бандлера. Возврат к вопросу о Vite — только через decisions.md при реальной необходимости (шейдерный пайплайн и т.п.).
-- **Слоистость сохраняется:** сцена не читает файлы сама. Storage → domain → state → сцена подписывается на state.
-- **DOM-оверлей** поверх canvas для всего редактирования: capture, редактор, search, suggestion-диалоги, review-списки. В сцене — только короткие подписи (счётчики, таблички) через canvas-текстуры.
-- **CameraRig** — абстракция с источниками ввода `mouse | gyro | xr-head`. v1 — только mouse.
-- **Темы без хардкода стилей** (требование product.md): все визуальные параметры — палитра, тайминги, плотность раскладки, выбор панорамы — в конфиге (`.desk/config.json`). Два пресета:
-    - `minimal` — нейтральный спокойный фон без окна и панорамы (заглушка product.md, режим разработки и деградации);
-    - `oceanview` — полная сцена.
-- Окно/панорама оформлены как **отключаемый слой окружения** — это одновременно даёт minimal-пресет и fallback для слабых машин.
+- **Vanilla Three.js as ESM via importmap, vendored** into the repository (offline requirement). No bundler. Reconsidering Vite requires a new decisions.md entry with a real need (shader pipeline etc.).
+- **Layering preserved:** the scene never reads files itself. Storage → domain → state → the scene subscribes to state.
+- **DOM overlay** above the canvas for all editing: capture, editor, search, suggestion dialogs, review lists. The scene renders only short labels (counters, nameplates) via canvas textures.
+- **CameraRig** — an abstraction with input sources `mouse | gyro | xr-head`. v1 — mouse only.
+- **Themes without hardcoded styles** (product.md requirement): all visual parameters — palette, timings, layout density, panorama choice — live in config (`.desk/config.json`). Two presets:
+    - `minimal` — a neutral calm background without window or panorama (the product.md placeholder; dev and degradation mode);
+    - `oceanview` — the full scene.
+- The window/panorama is designed as a **switchable environment layer** — doubling as the minimal preset and the fallback for weak machines.
 
-## 3. Камера
+## 3. Camera
 
-|ПАРАМЕТР|ЗНАЧЕНИЕ|
+|PARAMETER|VALUE|
 |---|---|
-|Yaw|±22° (суммарно ~45°)|
-|Pitch|два якоря: вверх → окно 70–80% кадра; вниз → стол 90–99%, проблески света от окна|
-|Ввод v1|нормализованная позиция курсора → целевые углы, без зажатия кнопок|
-|Dead zone|~12% в центре|
-|Сглаживание|экспоненциальный lerp|
-|Welcome drift|при загрузке камера за ~1.5 с мягко уходит с вида из окна вниз на стол (утренний ритуал, S2); прерывается любым вводом|
+|Yaw|±22° (about 45° total)|
+|Pitch|two anchors: up → window fills 70–80% of the frame; down → desk 90–99%, light glints from the window|
+|Input v1|normalized cursor position → target angles, no buttons held|
+|Dead zone|~12% in the center|
+|Smoothing|exponential lerp|
+|Welcome drift|on load, over ~1.5 s the camera gently moves from the window view down to the desk (morning ritual, S2); interrupted by any input|
 
-Gyro, drag-режим, WebXR head tracking — фазы 2–3.
+Gyro, drag mode, WebXR head tracking — phases 2–3.
 
-## 4. Сцена (HOME)
+## 4. Scene (HOME)
 
-Слои от дальнего к ближнему: панорама → рама окна → стол → объекты. Параллакс растёт к ближним слоям.
+Layers far → near: panorama → window frame → desk → objects. Parallax grows toward the near layers.
 
-- **Рабочая зона** (перед пользователем, нижние ~40% стола) = **Today tray (R-10)**: задачи с @due сегодня + овердью со всех стопок. Порядок: овердью сверху, затем по дате. Вводим видимый лимит 5 + мини-стопка «+N» на краю зоны (решение D-5, обсудить). Пустая зона пустует; «чистый листок» виден всегда.
-- **Стопки**: поверхность стола вмещает 7–9 (настройка «плотность стола»), остальные уходят «в глубину» — меньше, прозрачнее, в дымке, к краям и к окну. Dreamy-логика: пропорции и расстояния условны. Клик по дальней — выплывает вперёд, предыдущая уходит назад (~1 с).
-- Визуал стопки: 5–7 листов со смещением и микроповоротами + счётчик. Цвет ленточки/акцента — из `stack meta` в config.json.
-- **Inbox** — отличимая стопка: нейтральный цвет, пунктирная ленточка, бейдж с количеством (R-11).
+- **Working zone** (in front of the user, bottom ~40% of the desk) = **Today tray (R-10)**: tasks due today + overdue from all stacks. Order: overdue first, then by date. Visible limit of 5 + a "+N" mini-stack at the zone edge (decision D-5/D-021, to discuss). An empty zone stays empty; the "blank sheet" is always visible.
+- **Stacks**: the desk surface fits 7–9 (the "desk density" setting); the rest recede "into the depth" — smaller, more transparent, in haze, toward the edges and the window. Dreamy logic: proportions and distances are approximate. Clicking a far stack — it floats forward, the previous one recedes (~1 s).
+- **Stack visual**: 5–7 sheets with offsets and micro-rotations + a counter. Ribbon/accent color — from `stack meta` in config.json.
+- **Inbox** — a distinct stack: neutral color, dashed ribbon, count badge (R-11).
 
-## 5. Маппинг требований спеки на визуал
+## 5. Mapping spec requirements to visuals
 
-|REQ|ВИЗУАЛЬНАЯ РЕАЛИЗАЦИЯ|
+|REQ|VISUAL REALIZATION|
 |---|---|
-|R-01 Подключение папки|Нативный folder picker в DOM-оверлее; после подключения стопки «выезжают» на стол (первичная анимация появления)|
-|R-03 Desk view|Состояние HOME (разд. 4)|
-|R-04 Stack CRUD, перемещение|В контексте стопки; перемещение анимируется полётом|
-|R-06 Редактор|DOM-модалка, стилизованная под лист бумаги на столе|
-|R-07 @due задачи|Чекбокс на листке; отметка → анимация «штамп выполнено» → полёт в свою стопку|
-|R-08 Quick capture|Кнопка + hotkey; «чистый листок» в рабочей зоне кликабелен всегда. Расширение (D-3): в диалоге опциональный выбор стопки — выбрана → файл сразу в неё, нет → inbox/|
-|R-09 Smart placement|Листок в inbox подсвечен; от него — призрачная траектория к предложенной стопке; confirm → полёт; отклонил → остаётся. v1 — эвристики, без LLM|
-|R-10 Today tray|Рабочая зона (разд. 4)|
-|R-11 Маркеры|Овердью — красный сургуч/кант на стопке; inbox — бейдж; агентная активность — мягкое свечение|
-|R-12 Агентная активность|Маркер-«штамп» с числом изменений на стопке («work: 5 agent changes»); клик → стопка раскладывается, сверху «письмо-сводка» агента, изменённые файлы подсвечены; «mark reviewed» → свечение гаснет, листы успокаиваются|
-|R-13 Назначение агентов|Табличка/nameplate у стопки (данные из config.json), display only|
-|R-14 Search (P1)|DOM-оверлей; результат → открывается стопка, найденный листок приподнят|
-|R-15 Slides (P1)|Та же бумажная модалка, Marp-превью|
-|R-17 Финальная тема|**Снимается блокировку этим документом**; тема = пресет `oceanview`|
+|R-01 Connect folder|Native folder picker in the DOM overlay; after connecting, the stacks "slide out" onto the desk (intro animation)|
+|R-03 Desk view|The HOME state (§4)|
+|R-04 Stack CRUD, moving|In the stack context; moves are animated as flights|
+|R-06 Editor|DOM modal styled as a sheet of paper on the desk|
+|R-07 @due tasks|Checkbox on the sheet; checking → "done stamp" animation → flight into its stack|
+|R-08 Quick capture|Button + hotkey; the "blank sheet" in the working zone is always clickable. Extension (D-3/D-019): the dialog gets an optional stack picker — chosen → the file goes straight there, not → inbox/|
+|R-09 Smart placement|An inbox sheet is highlighted; a ghost trajectory leads to the suggested stack; confirm → flight; dismissed → stays. v1 — heuristics, no LLM|
+|R-10 Today tray|The working zone (§4)|
+|R-11 Markers|Overdue — a red wax seal/edging on the stack; inbox — a badge; agent activity — a soft glow|
+|R-12 Agent activity|A stamp-marker with the change count on the stack ("work: 5 agent changes"); click → the stack spreads out, the agent's "summary letter" on top, changed files highlighted; "mark reviewed" → the glow dies down, the sheets calm|
+|R-13 Agent assignment|A nameplate by the stack (data from config.json), display only|
+|R-14 Search (P1)|DOM overlay; result → the stack opens, the found sheet is raised|
+|R-15 Slides (P1)|The same paper modal, Marp preview|
+|R-17 Final theme|**Unblocked by this document**; the theme = the `oceanview` preset|
 
-## 6. Анимации
+## 6. Animations
 
-|СОБЫТИЕ|ДЛИТЕЛЬНОСТЬ|EASING|
+|EVENT|DURATION|EASING|
 |---|---|---|
-|Раскладка/сборка стопки|0.8–1.2 с|easeOut/easeInCubic|
-|Полёт заметки в стопку|0.5–0.8 с|дуга Безье + easeInOut|
-|Массовое перемещение|~1 с|staggered|
-|Переходы глубины/камеры|~1 с|easeInOutCubic|
-|Welcome drift|1.5 с|прерывается вводом|
+|Stack layout/assembly|0.8–1.2 s|easeOut/easeInCubic|
+|Note flight into a stack|0.5–0.8 s|Bézier arc + easeInOut|
+|Mass movement|~1 s|staggered|
+|Depth/camera transitions|~1 s|easeInOutCubic|
+|Welcome drift|1.5 s|interrupted by input|
 
-Назначение — показать, **куда** что улетает. Анимации не блокируют ввод.
+The purpose is to show **where** things fly. Animations never block input.
 
-## 7. Панорама
+## 7. Panorama
 
-- Сектор ~120–140° (полный 360° не нужен при ±22° yaw), широкое изображение 3:1–4:1, локально в ассетах.
-- Время суток: 4–6 ключевых кадров одного вида, плавный blend по локальному времени; режим авто/вручную. Свет на столе синхронизирован.
-- Живой слой: 2–3 спрайта — облака, блики моря, изредка птицы.
-- Стиль: предоставленный аниме-референс фиксирует композицию; доводка до Синкая — bloom, градиенты неба, контровой свет.
+- Sector ~120–140° (a full 360° is unnecessary at ±22° yaw), wide image 3:1–4:1, local assets.
+- Time of day: 4–6 keyframes of one view, a smooth blend by local time; auto/manual mode. The light on the desk is synchronized.
+- Live layer: 2–3 sprites — clouds, sea glints, occasional birds.
+- Style: the provided anime reference fixes the composition; the Shinkai polish — bloom, sky gradients, rim light.
 
-## 8. Производительность
+## 8. Performance
 
-60 fps на desktop; DPR cap; bloom и панорама высокого разрешения — отключаемый слой окружения (fallback = minimal-пресет). Бюджеты под Quest 3 — в фазе WebXR.
+60 fps on desktop; DPR cap; bloom and the high-res panorama are a switchable environment layer (fallback = the minimal preset). Quest 3 budgets — in the WebXR phase.
 
-## 9. Вехи
+## 9. Milestones
 
-Порядок P0 из spec.md не меняется. R-01, R-02 — headless, строятся как есть. **M-rig:** камерный риг как отдельная демо-страница параллельно. С R-03 сцена становится основным UI; P0 встраиваются сразу в сцену (minimal-пресет позволяет верифицировать логику без панорамы). A0-трек (пайплайн панорам) стартует немедленно — самый долгий контентный путь.
+The P0 order from spec.md is unchanged. R-01, R-02 — headless, built as is. **M-rig:** the camera rig as a separate demo page, in parallel. From R-03 the scene becomes the primary UI; P0 embed into the scene right away (the minimal preset lets us verify logic without the panorama). The A0 track (panorama pipeline) starts immediately — the longest content path.
 
-## 10. Решения для decisions.md
+## 10. Decisions for decisions.md
 
-- **D-1:** Presentation layer = vanilla Three.js (ESM, importmap, вендоренный); без бандлера.
-- **D-2:** DOM-оверлей для редактирования; в сцене — только подписи.
-- **D-3:** Capture-диалог с опциональным выбором стопки (расширение R-08); без выбора — inbox/.
-- **D-4:** R-17 разблокирован настоящим документом; система тем с пресетами minimal/oceanview.
-- **D-5:** Рабочая зона: лимит 5 видимых + мини-стопка «+N».
-- **D-6:** Мобильный webview и WebXR — фазы 2–3; хранение там — через замену storage-адаптера (OPFS или sync-бэкенд) по migration path.
+- **D-1 (D-017):** Presentation layer = vanilla Three.js (ESM, importmap, vendored); no bundler.
+- **D-2 (D-018):** DOM overlay for editing; the scene renders labels only.
+- **D-3 (D-019):** Capture dialog with an optional stack picker (extends R-08); no selection → inbox/.
+- **D-4 (D-020):** R-17 unblocked by this document; theme system with `minimal`/`oceanview` presets.
+- **D-5 (D-021):** Working zone: a visible limit of 5 + a "+N" mini-stack.
+- **D-6 (D-022):** Mobile webview and WebXR — phases 2–3; storage there via a storage-adapter swap (OPFS or a sync backend) per the migration path.

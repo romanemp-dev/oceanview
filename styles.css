@@ -527,3 +527,20 @@ input[type="date"].due-chip.overdue { background: var(--danger-soft); color: var
   padding: 0;
 }
 .stack-open:hover { color: var(--accent); }
+
+/* Visual scene (Wave 7) */
+.scene-canvas {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  display: block;
+  z-index: 0;
+}
+body.scene-mode .desk {
+  position: relative;
+  z-index: 1;
+  background: transparent;
+  max-width: none;
+  padding: 0;
+}

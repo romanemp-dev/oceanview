@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Oceanview — M-rig camera demo</title>
+  <style>
+    body { margin: 0; overflow: hidden; background: #0e141a; font-family: -apple-system, sans-serif; }
+    canvas { display: block; width: 100vw; height: 100vh; }
+    .hud {
+      position: fixed; left: 16px; top: 16px; color: #cfe6ef; font-size: 13px;
+      background: rgba(14, 20, 26, 0.7); padding: 10px 14px; border-radius: 10px; line-height: 1.5;
+    }
+    .hud b { color: #fff; }
+  </style>
+</head>
+<body>
+  <canvas id="stage"></canvas>
+  <div class="hud">
+    <b>M-rig demo</b> — move the cursor: yaw ±22°, pitch anchors (up = window, down = desk), dead zone 12%, exp lerp.<br>
+    Welcome drift plays on load (~1.5 s) and is interrupted by any input.
+  </div>
+  <script type="module">
+    import * as THREE from '../vendor/three/three.module.js';
+    import { createCameraRig } from '../src/visual/camera-rig.js';
+
+    const canvas = document.getElementById('stage');
+    const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x87b7cf);
+
+    // Reference markers: window (far), desk (near).
+    const windowPane = new THREE.Mesh(
+      new THREE.PlaneGeometry(4.3, 2.1),
+      new THREE.MeshBasicMaterial({ color: 0xdff1f8 }),
+    );
+    windowPane.position.set(0, 1.9, -3);
+    scene.add(windowPane);
+    const frame = new THREE.Mesh(
+      new THREE.BoxGeometry(4.6, 2.4, 0.1),
+      new THREE.MeshStandardMaterial({ color: 0x8a6a4a }),
+    );
+    frame.position.set(0, 1.9, -3.05);
+    scene.add(frame);
+    const desk = new THREE.Mesh(
+      new THREE.BoxGeometry(4.2, 0.08, 2.6),
+      new THREE.MeshStandardMaterial({ color: 0xb28a5f }),
+    );
+    desk.position.set(0, 0.72, 0.35);
+    scene.add(desk);
+    for (let i = 0; i < 5; i++) {
+      const marker = new THREE.Mesh(
+        new THREE.SphereGeometry(0.06, 16, 16),
+        new THREE.MeshBasicMaterial({ color: 0xc0392b }),
+      );
+      marker.position.set(-1.5 + i * 0.75, 0.8, -0.4);
+      scene.add(marker);
+    }
+
+    scene.add(new THREE.HemisphereLight(0xffffff, 0x8a7a66, 1.0));
+    const sun = new THREE.DirectionalLight(0xfff2dd, 1.2);
+    sun.position.set(-2.5, 3, -2);
+    scene.add(sun);
+
+    const camera = new THREE.PerspectiveCamera(55, 2, 0.1, 60);
+    camera.position.set(0, 1.35, 2.2);
+
+    const rig = createCameraRig({ camera, domElement: canvas });
+    rig.attach();
+
+    function resize() {
+      renderer.setSize(window.innerWidth, window.innerHeight, false);
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+    }
+    window.addEventListener('resize', resize);
+    resize();
+
+    function loop(now) {
+      rig.tick(now);
+      renderer.render(scene, camera);
+      requestAnimationFrame(loop);
+    }
+    requestAnimationFrame(loop);
+  </script>
+</body>
+</html>
