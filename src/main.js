@@ -679,8 +679,12 @@ async function onDisconnect() {
   await forgetHandle();
   adapter = null;
   ws = null;
+  scene?.dispose();
+  scene = null;
+  document.getElementById('scene-canvas')?.classList.add('hidden');
   hide(els.disconnect);
   hide(els.trash);
+  hide(els.scene);
   renderNotConnected();
 }
 

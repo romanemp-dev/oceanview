@@ -22,6 +22,13 @@ In progress
 
 Nothing yet.
 
+Fixed (2026-10-19, user report): welcome buttons unclickable — the scene canvas
+rule `display:block` (declared later, same specificity) overrode `.hidden`,
+leaving a transparent full-screen canvas above the welcome screen that swallowed
+all clicks. `.hidden` is now `!important`; the DOM overlay sits above the
+canvas with pointer-events pass-through on empty areas; disconnect now disposes
+the scene and hides the canvas.
+
 Fixed (2026-10-19, user report): blank app shell (only brand + status text) —
 src/visual/mount.js imported './visual/scene.js' from inside src/visual/,
 resolving to a 404 and breaking the whole module graph. Imports corrected;
