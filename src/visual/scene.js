@@ -415,11 +415,18 @@ export function createScene({ canvas, state, onZoneClick, config = {} }) {
   canvas.addEventListener('pointerdown', onPointerDown);
 
   let running = true;
+  let frameCount = 0;
+  let lastFrameError = null;
   function animate(now) {
     if (!running) return;
-    rig?.tick(now);
-    updateTweens(now);
-    renderer.render(scene, camera);
+    try {
+      rig?.tick(now);
+      updateTweens(now);
+      renderer.render(scene, camera);
+      frameCount++;
+    } catch (e) {
+      lastFrameError = String(e && e.stack || e);
+    }
     requestAnimationFrame(animate);
   }
 
@@ -446,6 +453,18 @@ export function createScene({ canvas, state, onZoneClick, config = {} }) {
     attachRig,
     flyNote,
     camera,
+    debug: () => ({
+      sceneChildren: scene.children.length,
+      stackMeshes: stacksLayer.children.length,
+      zoneMeshes: zoneLayer.children.length,
+      cam: camera.position.toArray().map((v) => Number(v.toFixed(2))),
+      quat: camera.quaternion.toArray().map((v) => Number(v.toFixed(2))),
+      size: [renderer.domElement.width, renderer.domElement.height],
+      calls: renderer.info.render.calls,
+      frames: frameCount,
+      frameError: lastFrameError,
+      rig: rig ? { pitch: rig.state.pitch, yaw: rig.state.yaw } : null,
+    }),
     dispose() {
       running = false;
       window.removeEventListener('resize', resize);

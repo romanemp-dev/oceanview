@@ -17,7 +17,7 @@ export function visualEnabled() {
   }
 }
 
-export function mountVisualScene({ canvas, onCaptureClick }) {
+export function mountVisualScene({ canvas, onCaptureClick, onFail }) {
   let cfg = {};
   try {
     cfg = JSON.parse(window.localStorage.getItem('oceanview-visual') ?? '{}');
@@ -39,6 +39,19 @@ export function mountVisualScene({ canvas, onCaptureClick }) {
   });
   const rig = createCameraRig({ camera: sceneHandle.camera, domElement: canvas });
   sceneHandle.attachRig(rig);
+
+  // Watchdog: if the renderer never produced a frame (GPU/rAF failure), fall
+  // back to the DOM desk instead of leaving the user on a blank colored screen.
+  setTimeout(() => {
+    try {
+      const info = sceneHandle?.debug();
+      if (!info || info.frames === 0 || info.calls === 0) {
+        onFail?.(info ?? null);
+      }
+    } catch {
+      onFail?.(null);
+    }
+  }, 1500);
   // Dev aid: ?cam=window|mid|desk pins the camera pose for screenshots.
   const camParam = (() => {
     try {
@@ -56,10 +69,33 @@ export function mountVisualScene({ canvas, onCaptureClick }) {
     }
   }
 
+  let debugBox = null;
+  try {
+    if (new URLSearchParams(window.location.search).get('debug')) {
+      debugBox = document.createElement('div');
+      debugBox.id = 'scene-debug';
+      debugBox.style.cssText = 'position:fixed;left:8px;bottom:8px;z-index:9998;background:rgba(0,0,0,.75);color:#9fe3b0;font:11px/1.4 ui-monospace,monospace;padding:8px 10px;border-radius:8px;white-space:pre;';
+      document.body.appendChild(debugBox);
+    }
+  } catch {
+    debugBox = null;
+  }
+
   return {
     update(deskState) {
       lastDeskState = deskState;
       sceneHandle?.refresh(deskState);
+      if (debugBox) {
+        try {
+          debugBox.textContent = JSON.stringify({
+            ...sceneHandle.debug(),
+            stacks: deskState.stacks.length,
+            inbox: deskState.inboxItems.length,
+          }, null, 1);
+        } catch (e) {
+          debugBox.textContent = 'debug error: ' + e.message;
+        }
+      }
     },
     flyNote(stackName) {
       sceneHandle?.flyNote(stackName);

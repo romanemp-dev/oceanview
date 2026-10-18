@@ -14,7 +14,7 @@ import { scanItemFiles, loadIndex, saveIndex, buildBaselineFromScan, diffAgainst
 // PWA (R-18): register the offline shell service worker.
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('sw.js').catch((err) => console.warn('SW registration failed:', err));
+    navigator.serviceWorker.register('sw.js?v=5', { updateViaCache: 'none' }).catch((err) => console.warn('SW registration failed:', err));
   });
 }
 
@@ -651,7 +651,18 @@ async function openWorkspace(nextAdapter, label) {
   if (visualEnabled() && !scene) {
     const canvas = document.getElementById('scene-canvas');
     canvas.classList.remove('hidden');
-    scene = mountVisualScene({ canvas, onCaptureClick: () => document.querySelector('.capture-fab')?.click() });
+    scene = mountVisualScene({
+      canvas,
+      onCaptureClick: () => document.querySelector('.capture-fab')?.click(),
+      onFail: () => {
+        // Scene could not render (GPU/rAF issue) — fall back to the DOM desk.
+        console.warn('Scene failed to render; falling back to the DOM desk');
+        scene?.dispose();
+        scene = null;
+        canvas.classList.add('hidden');
+        refresh();
+      },
+    });
   }
   if (!captureBound) {
     captureBound = true;

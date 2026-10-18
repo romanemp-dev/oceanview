@@ -22,6 +22,16 @@ In progress
 
 Nothing yet.
 
+Scene robustness (2026-10-19, user report "empty colored screens"): the scene
+canvas could stay on a cleared background with no geometry (render loop /
+shader failure in some GPU environments, or a stale service-worker shell).
+Mitigations: a render watchdog — if no frame/draw call lands within 1.5 s the
+app disposes the scene and falls back to the normal DOM desk; a self-service
+cache reset at /?reset=1 (unregisters the SW, clears its caches, keeps the
+workspace handle); SW cache bumped to v5 and registration made update-proof
+(sw.js?v=5, updateViaCache:none); a global runtime-error overlay; debug HUD
+(?debug=1) with frame/draw counters; demo mode ?demo=1[&scene=…&stacks=N].
+
 Wave 7 QA pass (2026-10-19, self-inspection via headless Chrome + demo mode):
 - demo mode: /?demo=1[&scene=oceanview][&cam=window|rest|desk] — in-memory
   workspace; lets the desk and scene be inspected without picking a folder

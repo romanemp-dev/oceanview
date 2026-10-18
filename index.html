@@ -23,6 +23,40 @@
   </header>
   <main id="desk" class="desk"></main>
 <canvas id="scene-canvas" class="scene-canvas hidden"></canvas>
+  <div id="err-overlay" style="display:none;position:fixed;right:16px;bottom:16px;max-width:520px;background:#3a1d1d;color:#ffd7d7;padding:14px 18px;border-radius:12px;font:12.5px/1.5 -apple-system,sans-serif;white-space:pre-wrap;z-index:9999;box-shadow:0 8px 30px rgba(0,0,0,.35);">
+    <div id="err-text"></div>
+    <button id="err-close" style="margin-top:8px;border:none;border-radius:8px;padding:4px 10px;cursor:pointer;">Dismiss</button>
+  </div>
+  <script>
+    // Cache reset (self-service): /?reset=1 unregisters the service worker and
+    // clears its caches, then reloads the clean app. Workspace data (IndexedDB
+    // handle, files) is untouched.
+    (function () {
+      if (!new URLSearchParams(location.search).has('reset')) return;
+      (async () => {
+        try {
+          const regs = await navigator.serviceWorker?.getRegistrations?.() ?? [];
+          await Promise.all(regs.map((r) => r.unregister()));
+          const keys = await caches?.keys?.() ?? [];
+          await Promise.all(keys.map((k) => caches.delete(k)));
+        } catch (e) {
+          console.warn('reset failed', e);
+        }
+        location.replace(location.pathname);
+      })();
+    })();
+    (function () {
+      const box = document.getElementById('err-overlay');
+      const text = document.getElementById('err-text');
+      document.getElementById('err-close').addEventListener('click', () => { box.style.display = 'none'; });
+      function show(msg) {
+        box.style.display = 'block';
+        text.textContent = 'Runtime error:\n' + msg;
+      }
+      window.addEventListener('error', (e) => show(e.message || String(e.error || 'unknown')));
+      window.addEventListener('unhandledrejection', (e) => show(String(e.reason?.stack || e.reason || 'unhandled rejection')));
+    })();
+  </script>
   <script type="module" src="src/main.js"></script>
 </body>
 </html>

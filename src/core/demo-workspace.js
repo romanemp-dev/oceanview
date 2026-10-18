@@ -20,14 +20,22 @@ export function createDemoAdapter() {
   const dirs = ['inbox', 'stacks', '.desk', '.desk/activity', '.desk/trash'];
   for (const d of dirs) adapter.ensureDir(d);
 
-  const stacks = [
+  // Mirror the user's real workspace: 10 stacks + inbox (stress test for the arc).
+  // ?stacks=N limits the count (bisecting/debug).
+  let stacks = [
     'Рабочие задачи',
     'Идеи для реализации',
     'Поездка в Китай',
     'Отложенные планы',
     'Личные заметки',
+    'Семейное',
     'Рецепты',
+    'Настройка OpenClaw',
+    'Oceanview',
+    'Дайджесты',
   ];
+  const limit = Number(new URLSearchParams(window.location.search).get('stacks') ?? 0);
+  if (limit > 0) stacks = stacks.slice(0, limit);
   for (const s of stacks) adapter.ensureDir(`stacks/${s}`);
 
   const item = (type, title, body, tags = []) =>
@@ -62,6 +70,22 @@ export function createDemoAdapter() {
   adapter.writeFile(
     'stacks/Личные заметки/start-here.md',
     item('note', 'Личные заметки — старт', 'Идеи по психологии, самореализации, разбору проблем.', ['personal']),
+  );
+  adapter.writeFile(
+    'stacks/Семейное/family-tasks.md',
+    item('checklist', 'Семейные дела', '- [ ] Спланировать выходные', ['family']),
+  );
+  adapter.writeFile(
+    'stacks/Настройка OpenClaw/setup-checklist.md',
+    item('checklist', 'Чек-лист настройки OpenClaw', '- [ ] Каналы\n- [ ] Навыки\n- [ ] Память', ['openclaw']),
+  );
+  adapter.writeFile(
+    'stacks/Oceanview/readme.md',
+    item('note', 'Oceanview — обзор проекта', 'Локальный стол для заметок и задач.', ['oceanview']),
+  );
+  adapter.writeFile(
+    'stacks/Дайджесты/2026-10-18.md',
+    item('note', 'Сегодня — 2026-10-18', 'Утренний дайджест (демо).', ['digest']),
   );
   adapter.writeFile(
     'stacks/Рецепты/project-brief.md',
