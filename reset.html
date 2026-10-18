@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Oceanview — cache reset</title>
+  <style>
+    body { font: 14px/1.5 -apple-system, sans-serif; background: #f4f6f8; color: #1f2933; display: grid; place-items: center; height: 100vh; margin: 0; }
+    .card { background: #fff; border-radius: 12px; box-shadow: 0 4px 16px rgba(31,41,51,.08); padding: 28px 32px; max-width: 420px; text-align: center; }
+    h1 { font-size: 18px; margin: 0 0 8px; }
+    p { color: #616e7c; margin: 0 0 12px; }
+    code { background: #eef1f4; border-radius: 6px; padding: 2px 6px; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Resetting Oceanview cache…</h1>
+    <p id="status">Unregistering the service worker and clearing caches.</p>
+    <p><small>Your workspace folder connection is kept.</small></p>
+  </div>
+  <script>
+    // This page is intentionally never precached: it must always reach the
+    // network so it can rescue a stale service worker / cache combination.
+    (async () => {
+      const status = document.getElementById('status');
+      const done = [];
+      try {
+        if ('serviceWorker' in navigator) {
+          const regs = await navigator.serviceWorker.getRegistrations();
+          await Promise.all(regs.map((r) => r.unregister()));
+          done.push(`unregistered ${regs.length} service worker(s)`);
+        }
+      } catch (e) {
+        done.push('SW unregister failed: ' + e.message);
+      }
+      try {
+        const keys = await caches.keys();
+        await Promise.all(keys.map((k) => caches.delete(k)));
+        done.push(`cleared ${keys.length} cache(s)`);
+      } catch (e) {
+        done.push('cache clear failed: ' + e.message);
+      }
+      status.textContent = done.join(' · ') + ' — reloading…';
+      setTimeout(() => location.replace('/?fresh=' + Date.now()), 600);
+    })();
+  </script>
+</body>
+</html>
