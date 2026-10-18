@@ -79,6 +79,7 @@ The purpose is to show **where** things fly. Animations never block input.
 - Time of day: 4–6 keyframes of one view, a smooth blend by local time; auto/manual mode. The light on the desk is synchronized.
 - Live layer: 2–3 sprites — clouds, sea glints, occasional birds.
 - Style: the provided anime reference fixes the composition; the Shinkai polish — bloom, sky gradients, rim light.
+- v1 asset: `assets/panorama/bay-view.jpg` (user-provided reference, cover-fitted into the window); POV composition reference: `assets/panorama/pov-reference.jpg`.
 
 ## 8. Performance
 

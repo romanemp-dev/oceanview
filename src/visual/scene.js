@@ -122,6 +122,7 @@ export function createScene({ canvas, state, onZoneClick, config = {} }) {
 
   // Environment layer (window + panorama) — the switchable oceanview layer.
   let environment = null;
+  let viewMesh = null;
   if (theme === 'oceanview') {
     environment = new THREE.Group();
     // Large window, roughly desk-width and taller (visual-spec §4).
@@ -137,6 +138,13 @@ export function createScene({ canvas, state, onZoneClick, config = {} }) {
     );
     glass.position.set(0, 2.05, -1.2);
     environment.add(glass);
+    // Window mullion, like the POV reference (left sash seam).
+    const mullion = new THREE.Mesh(
+      new THREE.BoxGeometry(0.06, 2.9, 0.05),
+      new THREE.MeshStandardMaterial({ color: 0x2e343c, roughness: 0.5, metalness: 0.3 }),
+    );
+    mullion.position.set(-0.95, 2.05, -1.17);
+    environment.add(mullion);
     // Windowsill between the window and the desk — future trinkets area.
     const sill = new THREE.Mesh(
       new THREE.BoxGeometry(4.3, 0.1, 0.34),
@@ -157,7 +165,7 @@ export function createScene({ canvas, state, onZoneClick, config = {} }) {
       wall.position.set(x, y, z);
       environment.add(wall);
     }
-    // Sill trinkets: a small plant and two books (placeholders until A0 props).
+    // Sill trinkets: a small plant, books and a pen cup (POV reference).
     const pot = new THREE.Mesh(
       new THREE.CylinderGeometry(0.09, 0.07, 0.16, 16),
       new THREE.MeshStandardMaterial({ color: 0xb5643c, roughness: 0.8 }),
@@ -180,6 +188,25 @@ export function createScene({ canvas, state, onZoneClick, config = {} }) {
     book2.position.y = 1.03;
     book2.rotation.y = 0.2;
     environment.add(book2);
+
+    // Pen cup on the desk, left side (POV reference composition).
+    const cup = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.085, 0.075, 0.16, 18),
+      new THREE.MeshStandardMaterial({ color: 0xd9d2c4, roughness: 0.7 }),
+    );
+    cup.position.set(-1.72, 0.84, 0.5);
+    environment.add(cup);
+    const penColors = [0x2f5d8a, 0xb7791f, 0x2e343c, 0x8a4b3a];
+    penColors.forEach((color, i) => {
+      const pen = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.012, 0.012, 0.3, 8),
+        new THREE.MeshStandardMaterial({ color, roughness: 0.6 }),
+      );
+      pen.position.set(-1.72 + (i - 1.5) * 0.035, 0.95, 0.5 + (i % 2) * 0.03);
+      pen.rotation.z = (i - 1.5) * 0.08;
+      pen.rotation.x = (i % 2 ? 0.06 : -0.05);
+      environment.add(pen);
+    });
     // Placeholder panorama gradient (A0 track replaces this with a real image).
     const skyCanvas = document.createElement('canvas');
     skyCanvas.width = 64;
@@ -200,6 +227,25 @@ export function createScene({ canvas, state, onZoneClick, config = {} }) {
     );
     view.position.set(0, 2.05, -1.19);
     environment.add(view);
+    viewMesh = view;
+
+    // A0: real panorama from the user's reference (assets/panorama/bay-view.jpg).
+    new THREE.TextureLoader().load('assets/panorama/bay-view.jpg', (tex) => {
+      const imgAspect = tex.image.width / tex.image.height;
+      const planeAspect = 4.2 / 2.9;
+      tex.wrapS = THREE.ClampToEdgeWrapping;
+      tex.wrapT = THREE.ClampToEdgeWrapping;
+      if (imgAspect < planeAspect) {
+        tex.repeat.set(1, imgAspect / planeAspect);
+        tex.offset.set(0, (1 - imgAspect / planeAspect) / 2);
+      } else {
+        tex.repeat.set(planeAspect / imgAspect, 1);
+        tex.offset.set((1 - planeAspect / imgAspect) / 2, 0);
+      }
+      tex.colorSpace = THREE.SRGBColorSpace;
+      view.material.map = tex;
+      view.material.needsUpdate = true;
+    });
     scene.add(environment);
   }
 
@@ -209,6 +255,44 @@ export function createScene({ canvas, state, onZoneClick, config = {} }) {
   scene.add(stacksLayer, zoneLayer);
 
   let stackMeshes = [];
+  let stacksBuilt = false;
+
+  // --- Animation system (visual-spec §6) ---------------------------------
+  const tweens = [];
+  const easeOutCubic = (t) => 1 - Math.pow(1 - t, 3);
+  const easeInOutCubic = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
+
+  function moveTween(mesh, to, { duration = 900, delay = 0, ease = easeOutCubic, lift = 0, onDone = null } = {}) {
+    tweens.push({
+      mesh,
+      from: mesh.position.clone(),
+      to: to.clone(),
+      start: performance.now() + delay,
+      duration,
+      ease,
+      lift,
+      onDone,
+    });
+  }
+
+  function updateTweens(now) {
+    for (let i = tweens.length - 1; i >= 0; i--) {
+      const tw = tweens[i];
+      if (now < tw.start) continue;
+      const t = Math.min((now - tw.start) / tw.duration, 1);
+      const e = tw.ease(t);
+      const y = tw.from.y + (tw.to.y - tw.from.y) * e + (tw.lift ? Math.sin(Math.PI * t) * tw.lift : 0);
+      tw.mesh.position.set(
+        tw.from.x + (tw.to.x - tw.from.x) * e,
+        y,
+        tw.from.z + (tw.to.z - tw.from.z) * e,
+      );
+      if (t >= 1) {
+        if (tw.onDone) tw.onDone();
+        tweens.splice(i, 1);
+      }
+    }
+  }
 
   function layoutStacks(deskState) {
     stacksLayer.clear();
@@ -232,15 +316,23 @@ export function createScene({ canvas, state, onZoneClick, config = {} }) {
       const t = n === 1 ? 0.5 : i / (n - 1);
       const angle = -maxAngle + t * 2 * maxAngle;
       const mesh = makeStackMesh(entry);
-      mesh.position.set(
+      const target = new THREE.Vector3(
         Math.sin(angle) * radius,
         0.76,
         2.45 - Math.cos(angle) * radius,
       );
+      mesh.position.copy(target);
+      // First build: stacks float in and settle (assembly animation §6).
+      if (!stacksBuilt) {
+        mesh.position.y = target.y + 0.45;
+        moveTween(mesh, target, { duration: 1000, delay: i * 70, ease: easeOutCubic });
+      }
       mesh.userData.entry = entry;
+      mesh.userData.home = target.clone();
       stacksLayer.add(mesh);
       stackMeshes.push(mesh);
     });
+    stacksBuilt = true;
   }
 
   function layoutZone(deskState) {
@@ -304,10 +396,33 @@ export function createScene({ canvas, state, onZoneClick, config = {} }) {
   }
   canvas.addEventListener('pointerdown', onPointerDown);
 
+  // Note flight (visual-spec §6): a sheet arcs from the working zone to a stack.
+  function flyNote(stackName) {
+    const target = stackMeshes.find((m) => m.userData.entry?.name === stackName);
+    if (!target) return;
+    const sheet = makeSheet({ w: 0.3, h: 0.4, color: '#ffffff' });
+    sheet.rotation.x = -Math.PI / 2;
+    sheet.position.set(0, 0.78, 1.9);
+    scene.add(sheet);
+    const dest = target.position.clone();
+    dest.y = 0.9;
+    moveTween(sheet, dest, {
+      duration: 750,
+      ease: easeInOutCubic,
+      lift: 0.55,
+      onDone: () => scene.remove(sheet),
+    });
+    // Small pulse on the receiving stack.
+    const home = target.userData.home?.clone() ?? target.position.clone();
+    moveTween(target, home.clone().setY(home.y + 0.06), { duration: 180, ease: easeOutCubic });
+    setTimeout(() => moveTween(target, home, { duration: 260, ease: easeInOutCubic }), 200);
+  }
+
   let running = true;
   function animate(now) {
     if (!running) return;
     rig?.tick(now);
+    updateTweens(now);
     renderer.render(scene, camera);
     requestAnimationFrame(animate);
   }
@@ -333,6 +448,7 @@ export function createScene({ canvas, state, onZoneClick, config = {} }) {
   return {
     refresh,
     attachRig,
+    flyNote,
     camera,
     dispose() {
       running = false;

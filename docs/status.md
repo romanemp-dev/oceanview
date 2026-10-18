@@ -22,6 +22,14 @@ In progress
 
 Nothing yet.
 
+Wave 7 step 3 (2026-10-19, user references): A0 panorama landed — the real
+window view (assets/panorama/bay-view.jpg, user-provided reference) is
+cover-fitted into the window with UV crop; POV reference applied: window
+mullion, pen cup with pencils, plant and books on the sill. Animations v1
+(visual-spec §6): staggered stack assembly on first build, note flights from
+the working zone to the receiving stack (pulse), wired to moves and capture.
+SW cache v3 includes scene, vendor and panorama assets.
+
 Wave 7 step 2 (2026-10-19, user feedback + visual references): camera raised to
 1.6 m and pulled to the desk edge; pitch anchors re-tuned — top = straight into
 the window, bottom = desk fills ~90% of the frame; yaw reduced to ±15° and

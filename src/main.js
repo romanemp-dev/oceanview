@@ -227,6 +227,8 @@ function deskHandlers() {
     },
     moveItemTo: async (fromDir, fileName, toDir) => {
       await ws.moveItem(fromDir, fileName, toDir);
+      const stackName = toDir.startsWith(`${STACKS_DIR}/`) ? toDir.split('/').pop() : 'Inbox';
+      scene?.flyNote(stackName);
       refresh();
     },
     createStack: async (parentPath = '') => {
@@ -648,6 +650,7 @@ async function connectFlow(handle) {
     onCapture: async (line1, line2) => {
       const { meta, body } = captureItemText(line1, line2);
       await ws.writeItem(INBOX, `${Date.now()}-capture.md`, meta, body);
+      scene?.flyNote('Inbox');
       refresh();
     },
   });

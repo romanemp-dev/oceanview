@@ -3,7 +3,7 @@
 // manual SW bump), falling back to the cache when offline. The workspace
 // files come from the File System Access API, never from the network — the
 // SW does not touch them.
-const CACHE = 'oceanview-v1';
+const CACHE = 'oceanview-v3';
 const SHELL = [
   '/',
   '/index.html',
@@ -28,6 +28,14 @@ const SHELL = [
   '/src/core/activity.js',
   '/src/core/search.js',
   '/src/core/slides.js',
+  '/src/core/changes.js',
+  '/src/visual/camera-rig.js',
+  '/src/visual/scene.js',
+  '/src/visual/mount.js',
+  '/vendor/three/three.module.js',
+  '/vendor/three/three.core.js',
+  '/assets/panorama/bay-view.jpg',
+  '/m-rig.html',
 ];
 
 self.addEventListener('install', (event) => {

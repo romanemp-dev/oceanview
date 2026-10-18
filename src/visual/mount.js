@@ -44,6 +44,9 @@ export function mountVisualScene({ canvas, onCaptureClick }) {
       lastDeskState = deskState;
       sceneHandle?.refresh(deskState);
     },
+    flyNote(stackName) {
+      sceneHandle?.flyNote(stackName);
+    },
     dispose() {
       sceneHandle?.dispose();
       sceneHandle = null;
