@@ -24,8 +24,9 @@ dependencies (Three.js is vendored for the visual layer).
 - Done: R-01…R-13 (all P0), R-05 P1 (list/slides), R-14 search, R-15 slides
   preview, R-16 (covered by `scripts/serve.sh`), R-18 PWA.
 - **R-17 (final visual theme): planned** — requirements in
-  `docs/visual-spec.md`; Wave 7 step 1 shipped (Three.js scene foundation +
-  M-rig camera demo). See §8 for the continuation plan.
+  `docs/visual-spec.md`; Wave 7 steps 1–2 shipped (Three.js scene foundation + M-rig camera demo;
+  camera framing per user feedback, warm light, window wall + sill props,
+  topbar Scene toggle). See §8 for the continuation plan.
 
 **Beyond the original spec** (tracked in decisions.md/plan.md):
 
