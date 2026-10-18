@@ -1,4 +1,6 @@
-// placeholder
+# Oceanview — project handoff for AI assistants
+
+_Last updated: 2026-10-19 (Wave 7 QA + blank-scene root cause)._
 
 > Give this file (plus `AGENTS.md` and the `docs/` set) to any AI coding agent.
 > Read order: this file → `AGENTS.md` → `docs/product.md` → `docs/spec.md` →
@@ -17,17 +19,18 @@ folder directly and their activity is visualized for review.
 Target: desktop Chrome/Edge. Vanilla ES modules, no bundler, zero runtime
 dependencies (Three.js is vendored for the visual layer).
 
-## 2. Current status (2026-10-17)
+## 2. Current status (2026-10-19)
 
 **MVP is complete.** Spec v1.0 items:
 
 - Done: R-01…R-13 (all P0), R-05 P1 (list/slides), R-14 search, R-15 slides
   preview, R-16 (covered by `scripts/serve.sh`), R-18 PWA.
 - **R-17 (final visual theme): planned** — requirements in
-  `docs/visual-spec.md`; Wave 7 steps 1–3 shipped (Three.js scene foundation + M-rig camera demo;
+  `docs/visual-spec.md`; Wave 7 steps 1–5 shipped (Three.js scene foundation + M-rig camera demo;
   camera framing per user feedback; A0 panorama from the user reference with
-  cover-fit; POV props; v1 animations — stack assembly + note flights;
-  topbar Scene toggle). See §8 for the continuation plan.
+  cover-fit; POV props; v1 animations; QA pass with realistic scale and three
+  camera anchors; render watchdog + DOM fallback; demo mode; no-store server).
+  See §8 for the continuation plan.
 
 **Beyond the original spec** (tracked in decisions.md/plan.md):
 
@@ -57,9 +60,17 @@ dependencies (Three.js is vendored for the visual layer).
 3. **Docs stack in the user's workspace is a snapshot.** The repository is the
    source of truth; the workspace "Oceanview" stack holds readable copies and
    is refreshed by an agent task (`stacks/Oceanview/agent-task-sync-docs.md`).
-4. R-17 content asset (panorama) is not in the repo yet — the oceanview preset
-   currently renders a procedural placeholder. The A0 panorama track is the
-   longest content path (visual-spec §9).
+4. R-17 panorama: v1 asset is in the repo (`assets/panorama/bay-view.jpg`,
+   cover-fitted). Next: 4–6 time-of-day keyframes (visual-spec §9).
+5. **Blank coloured scene screens (fixed 2026-10-19).** Root cause:
+   `camera-rig.js` was missing the `pitchRest` default → NaN pitch on the first
+   tick → NaN camera quaternion → everything frustum-culled → only the clear
+   colour rendered. Fixed and verified. A render watchdog now falls back to
+   the DOM desk if no frame/draw lands in 1.5 s.
+6. **Stale build in the browser (fixed 2026-10-19).** The old python dev server
+   allowed heuristic HTTP caching of modules. The dev server is now
+   `server.mjs` (Cache-Control: no-store). If a browser is still stuck: open
+   `/reset.html`, then hard-reload once (Cmd+Shift+R).
 
 ## 3. Repository layout
 
