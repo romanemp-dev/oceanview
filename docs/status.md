@@ -22,6 +22,15 @@ In progress
 
 Nothing yet.
 
+Root cause found for empty colored scene screens (2026-10-19): camera-rig.js
+was missing the pitchRest default, so the first tick produced NaN pitch →
+NaN camera quaternion → every object was frustum-culled, leaving only the
+clear color. Fixed (pitchRest default restored; verified numerically and by
+screenshot). Dev server replaced with server.mjs (Node, no-store) because
+python http.server's heuristic caching kept serving stale JS even after SW
+cache clears; serve.sh now uses it. reset.html added (never precached) to
+rescue stale service workers. See also the render watchdog + DOM fallback.
+
 Scene robustness (2026-10-19, user report "empty colored screens"): the scene
 canvas could stay on a cleared background with no geometry (render loop /
 shader failure in some GPU environments, or a stale service-worker shell).

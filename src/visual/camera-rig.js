@@ -6,7 +6,8 @@ export function createCameraRig({ camera, domElement, config = {} }) {
   const cfg = {
     yawRange: (config.yawRange ?? 15) * (Math.PI / 180),
     pitchUp: config.pitchUp ?? 0.02, // rad, looking straight into the window
-    pitchDown: config.pitchDown ?? -0.62, // rad, desk fills ~90% of the frame
+    pitchRest: config.pitchRest ?? -0.18, // rad, resting POV (window + desk)
+    pitchDown: config.pitchDown ?? -0.6, // rad, desk fills ~90% of the frame
     deadZone: config.deadZone ?? 0.12,
     lerp: config.lerp ?? 0.05,
     driftMs: config.driftMs ?? 1500,
