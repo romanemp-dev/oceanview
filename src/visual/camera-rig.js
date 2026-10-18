@@ -39,7 +39,7 @@ export function createCameraRig({ camera, domElement, config = {} }) {
     // Dead zone: input within the central band maps to 0.
     const dz = cfg.deadZone;
     const dead = (v) => (Math.abs(v) <= dz ? 0 : (v - Math.sign(v) * dz) / (1 - dz));
-    state.targetYaw = dead(nx) * cfg.yawRange;
+    state.targetYaw = -dead(nx) * cfg.yawRange;
     // Screen up (ny < 0) → look up at the window; down → look down at the desk.
     const nyDead = dead(ny);
     state.targetPitch = nyDead < 0 ? -nyDead * cfg.pitchUp : -nyDead * Math.abs(cfg.pitchDown);

@@ -124,18 +124,26 @@ export function createScene({ canvas, state, onZoneClick, config = {} }) {
   let environment = null;
   if (theme === 'oceanview') {
     environment = new THREE.Group();
+    // Large window, roughly desk-width and taller (visual-spec §4).
     const frame = new THREE.Mesh(
-      new THREE.BoxGeometry(4.6, 2.4, 0.08),
+      new THREE.BoxGeometry(4.4, 3.1, 0.1),
       new THREE.MeshStandardMaterial({ color: 0x8a6a4a, roughness: 0.6 }),
     );
-    frame.position.set(0, 1.9, -2.4);
+    frame.position.set(0, 2.05, -1.26);
     environment.add(frame);
     const glass = new THREE.Mesh(
-      new THREE.PlaneGeometry(4.3, 2.1),
+      new THREE.PlaneGeometry(4.2, 2.9),
       new THREE.MeshBasicMaterial({ color: 0xbfe2ef }),
     );
-    glass.position.set(0, 1.9, -2.35);
+    glass.position.set(0, 2.05, -1.2);
     environment.add(glass);
+    // Windowsill between the window and the desk — future trinkets area.
+    const sill = new THREE.Mesh(
+      new THREE.BoxGeometry(4.3, 0.1, 0.34),
+      new THREE.MeshStandardMaterial({ color: 0x6f5540, roughness: 0.6 }),
+    );
+    sill.position.set(0, 0.9, -1.03);
+    environment.add(sill);
     // Placeholder panorama gradient (A0 track replaces this with a real image).
     const skyCanvas = document.createElement('canvas');
     skyCanvas.width = 64;
@@ -151,10 +159,10 @@ export function createScene({ canvas, state, onZoneClick, config = {} }) {
     const skyTex = new THREE.CanvasTexture(skyCanvas);
     skyTex.colorSpace = THREE.SRGBColorSpace;
     const view = new THREE.Mesh(
-      new THREE.PlaneGeometry(4.3, 2.1),
+      new THREE.PlaneGeometry(4.2, 2.9),
       new THREE.MeshBasicMaterial({ map: skyTex }),
     );
-    view.position.set(0, 1.9, -2.34);
+    view.position.set(0, 2.05, -1.19);
     environment.add(view);
     scene.add(environment);
   }
@@ -181,13 +189,18 @@ export function createScene({ canvas, state, onZoneClick, config = {} }) {
       })),
     ];
     const n = entries.length;
+    // Semicircle around the viewer (equal reach for left/right/center stacks).
+    const radius = 1.55;
+    const maxAngle = Math.PI / 3; // ±60°
     entries.forEach((entry, i) => {
-      // Far stacks recede toward the window edges (dreamy depth logic §4).
-      const row = i < 4 ? 0 : 1;
-      const col = i % 4;
+      const t = n === 1 ? 0.5 : i / (n - 1);
+      const angle = -maxAngle + t * 2 * maxAngle;
       const mesh = makeStackMesh(entry);
-      mesh.position.set(-1.6 + col * 1.05 + row * 0.5, 0.76, -0.55 - row * 0.5);
-      if (row > 0) mesh.scale.setScalar(0.85);
+      mesh.position.set(
+        Math.sin(angle) * radius,
+        0.76,
+        2.2 - Math.cos(angle) * radius,
+      );
       mesh.userData.entry = entry;
       stacksLayer.add(mesh);
       stackMeshes.push(mesh);
