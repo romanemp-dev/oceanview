@@ -5,7 +5,7 @@
 export function createCameraRig({ camera, domElement, config = {} }) {
   const cfg = {
     yawRange: (config.yawRange ?? 15) * (Math.PI / 180),
-    pitchUp: config.pitchUp ?? 0.13, // rad, looking straight into the window
+    pitchUp: config.pitchUp ?? 0.02, // rad, looking straight into the window
     pitchDown: config.pitchDown ?? -0.62, // rad, desk fills ~90% of the frame
     deadZone: config.deadZone ?? 0.12,
     lerp: config.lerp ?? 0.05,
@@ -41,15 +41,19 @@ export function createCameraRig({ camera, domElement, config = {} }) {
     const dead = (v) => (Math.abs(v) <= dz ? 0 : (v - Math.sign(v) * dz) / (1 - dz));
     state.targetYaw = -dead(nx) * cfg.yawRange;
     // Screen up (ny < 0) → look up at the window; down → look down at the desk.
+    // The screen center rests at the POV composition (window top + desk bottom).
     const nyDead = dead(ny);
-    state.targetPitch = nyDead < 0 ? -nyDead * cfg.pitchUp : -nyDead * Math.abs(cfg.pitchDown);
+    state.targetPitch = nyDead < 0
+      ? cfg.pitchRest + -nyDead * (cfg.pitchUp - cfg.pitchRest)
+      : cfg.pitchRest - nyDead * (cfg.pitchRest - cfg.pitchDown);
   }
 
   function startDrift() {
     state.drifting = true;
     state.driftStart = performance.now();
     state.targetYaw = 0;
-    // Drift start: looking at the window; end: looking at the desk.
+    // Drift start: looking at the window; end: the resting POV composition
+    // (window top + desk bottom, per the user's POV reference).
     state.targetPitch = cfg.pitchUp;
   }
 
@@ -57,7 +61,7 @@ export function createCameraRig({ camera, domElement, config = {} }) {
     if (state.drifting) {
       const t = Math.min((now - state.driftStart) / cfg.driftMs, 1);
       const eased = 1 - Math.pow(1 - t, 3); // easeOutCubic
-      state.targetPitch = cfg.pitchUp + (cfg.pitchDown - cfg.pitchUp) * eased;
+      state.targetPitch = cfg.pitchUp + (cfg.pitchRest - cfg.pitchUp) * eased;
       if (t >= 1) state.drifting = false;
     }
     state.yaw += (state.targetYaw - state.yaw) * cfg.lerp;

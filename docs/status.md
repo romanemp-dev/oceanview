@@ -22,6 +22,20 @@ In progress
 
 Nothing yet.
 
+Wave 7 QA pass (2026-10-19, self-inspection via headless Chrome + demo mode):
+- demo mode: /?demo=1[&scene=oceanview][&cam=window|rest|desk] — in-memory
+  workspace; lets the desk and scene be inspected without picking a folder
+- fixed a regression where earlier main.js fixes (scene root mode, stack
+  clicks, disconnect cleanup) were overwritten by a stale build copy
+- scene rescaled to realistic proportions (~1.4 m desk, seated camera) after
+  screenshot review showed a "giant paper" world
+- camera base orientation moved to horizontal; three anchors: window (0.02),
+  rest POV composition (-0.18, matches the user's POV reference), desk (-0.6)
+- stacks: thick sheet piles with flat readable labels, thin ribbons, overdue
+  seals; labels leaned slightly toward the viewer; pile scale reduces when
+  more than 6 stacks
+- status: window/pano, sill props, pen cup, warm light verified by screenshots
+
 Scene mode UX (2026-10-19, user feedback): at the root level the 3D scene is
 the desk — DOM cards are no longer rendered on top; the topbar stays above the
 canvas (z-index) so the Scene toggle can always switch back; clicking a stack

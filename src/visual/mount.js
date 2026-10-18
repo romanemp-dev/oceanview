@@ -37,7 +37,24 @@ export function mountVisualScene({ canvas, onCaptureClick }) {
       }
     },
   });
-  sceneHandle.attachRig(createCameraRig({ camera: sceneHandle.camera, domElement: canvas }));
+  const rig = createCameraRig({ camera: sceneHandle.camera, domElement: canvas });
+  sceneHandle.attachRig(rig);
+  // Dev aid: ?cam=window|mid|desk pins the camera pose for screenshots.
+  const camParam = (() => {
+    try {
+      return new URLSearchParams(window.location.search).get('cam');
+    } catch {
+      return null;
+    }
+  })();
+  if (camParam) {
+    rig.state.drifting = false;
+    const poses = { window: 0.02, rest: -0.18, mid: 0, desk: -0.6 };
+    if (camParam in poses) {
+      rig.state.targetPitch = poses[camParam];
+      rig.state.pitch = poses[camParam];
+    }
+  }
 
   return {
     update(deskState) {

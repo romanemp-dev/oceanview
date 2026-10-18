@@ -630,16 +630,17 @@ function buildChangesPanel(changes) {
   return panel;
 }
 
-async function connectFlow(handle) {
-  await saveHandle(handle);
-  adapter = fsAccessAdapter(handle);
+let captureBound = false;
+
+async function openWorkspace(nextAdapter, label) {
+  adapter = nextAdapter;
   ws = createWorkspaceModel(adapter, createIndexHooks({
     getIndex: () => changeTracker?.index ?? { files: {}, pending: {} },
     isReady: () => changeTrackerReady(),
     save: async () => { if (changeTracker) await saveIndex(adapter, changeTracker.index); },
   }));
   route = { view: 'desk', stackPath: '' };
-  setStatus(`Workspace: ${handle.name}`);
+  setStatus(label);
   show(els.disconnect);
   show(els.trash);
   show(els.scene);
@@ -652,15 +653,31 @@ async function connectFlow(handle) {
     canvas.classList.remove('hidden');
     scene = mountVisualScene({ canvas, onCaptureClick: () => document.querySelector('.capture-fab')?.click() });
   }
-  setupQuickCapture({
-    onCapture: async (line1, line2) => {
-      const { meta, body } = captureItemText(line1, line2);
-      await ws.writeItem(INBOX, `${Date.now()}-capture.md`, meta, body);
-      scene?.flyNote('Inbox');
-      refresh();
-    },
-  });
+  if (!captureBound) {
+    captureBound = true;
+    setupQuickCapture({
+      onCapture: async (line1, line2) => {
+        const { meta, body } = captureItemText(line1, line2);
+        await ws.writeItem(INBOX, `${Date.now()}-capture.md`, meta, body);
+        scene?.flyNote('Inbox');
+        refresh();
+      },
+    });
+  }
+  await initChangeTracker();
   await refresh();
+}
+
+async function connectFlow(handle) {
+  await saveHandle(handle);
+  await openWorkspace(fsAccessAdapter(handle), `Workspace: ${handle.name}`);
+}
+
+// Demo mode (dev aid): /?demo=1[&scene=oceanview] — in-memory workspace, no
+// folder picking. Lets developers and automated checks see the desk and scene.
+async function connectDemo() {
+  const { createDemoAdapter } = await import('./core/demo-workspace.js');
+  await openWorkspace(createDemoAdapter(), 'Demo workspace (in-memory)');
 }
 
 async function onConnect() {
@@ -715,6 +732,22 @@ function renderNotConnected() {
 }
 
 async function init() {
+  const params = new URLSearchParams(window.location.search);
+  if (params.get('scene')) {
+    try {
+      window.localStorage.setItem('oceanview-visual', JSON.stringify({ theme: params.get('scene') }));
+    } catch {
+      /* ignore quota/privacy errors */
+    }
+  }
+  if (params.get('demo')) {
+    if (params.get('scene')) {
+      // reflect the chosen preset in the Scene button without reloading
+      updateSceneButton();
+    }
+    await connectDemo();
+    return;
+  }
   if (!isSupported()) {
     renderNotConnected();
     return;

@@ -182,6 +182,10 @@ node --test test/             # 54 tests, must stay green
 
 Open `http://localhost:8171` in desktop Chrome/Edge, connect a workspace
 folder (or create a new desk). Camera rig demo: `http://localhost:8171/m-rig.html`.
+Demo mode (no folder picking, in-memory workspace):
+`http://localhost:8171/?demo=1` — add `&scene=oceanview` and
+`&cam=window|rest|desk` to inspect the 3D scene; `?cam=rest` matches the POV
+composition reference. This is the fastest way for an agent to screenshot the UI.
 Scene preview: in DevTools console run
 `localStorage.setItem('oceanview-visual','{"theme":"oceanview"}')`, reload,
 connect a workspace. Remove the key to return to the DOM-only desk.
