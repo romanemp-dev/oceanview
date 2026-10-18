@@ -24,8 +24,9 @@ dependencies (Three.js is vendored for the visual layer).
 - Done: R-01…R-13 (all P0), R-05 P1 (list/slides), R-14 search, R-15 slides
   preview, R-16 (covered by `scripts/serve.sh`), R-18 PWA.
 - **R-17 (final visual theme): planned** — requirements in
-  `docs/visual-spec.md`; Wave 7 steps 1–2 shipped (Three.js scene foundation + M-rig camera demo;
-  camera framing per user feedback, warm light, window wall + sill props,
+  `docs/visual-spec.md`; Wave 7 steps 1–3 shipped (Three.js scene foundation + M-rig camera demo;
+  camera framing per user feedback; A0 panorama from the user reference with
+  cover-fit; POV props; v1 animations — stack assembly + note flights;
   topbar Scene toggle). See §8 for the continuation plan.
 
 **Beyond the original spec** (tracked in decisions.md/plan.md):
@@ -206,8 +207,8 @@ changes when online.
 1. **Fix nested-stack UX** (small, high value): every stack card opens on
    title click; add a "+ sub-stack" action directly on cards; keep breadcrumbs.
 2. **Wave 7 — visual scene** (per `docs/visual-spec.md`):
-   a. A0 track: panorama assets (3:1–4:1 sector, 4–6 time-of-day keyframes)
-      — replace the procedural placeholder in `src/visual/scene.js`.
+   a. A0 track: panorama assets — v1 single reference image landed
+      (`assets/panorama/bay-view.jpg`); next: 4–6 time-of-day keyframes.
    b. Camera polish: pitch framing per §3 (window 70–80% up, desk 90–99% down),
       optional drag mode; verify with `m-rig.html`.
    c. Animations §6: stack assembly, note flights, mass moves, depth
