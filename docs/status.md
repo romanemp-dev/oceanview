@@ -22,6 +22,12 @@ In progress
 
 Nothing yet.
 
+Scene mode UX (2026-10-19, user feedback): at the root level the 3D scene is
+the desk — DOM cards are no longer rendered on top; the topbar stays above the
+canvas (z-index) so the Scene toggle can always switch back; clicking a stack
+in the scene opens that stack level as a DOM overlay (breadcrumb "Desk" returns
+to the scene).
+
 Fixed (2026-10-19, user report): welcome buttons unclickable — the scene canvas
 rule `display:block` (declared later, same specificity) overrode `.hidden`,
 leaving a transparent full-screen canvas above the welcome screen that swallowed

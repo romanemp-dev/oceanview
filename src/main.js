@@ -155,6 +155,12 @@ async function renderReview() {
 
 async function renderDesk() {
   const desk = lastDesk ?? (await ws.readDesk(route.stackPath || ''));
+  // Scene root mode: with the 3D scene enabled, the root desk is the scene —
+  // no DOM cards on top (the topbar stays for mode switching).
+  if (scene && !route.stackPath) {
+    els.desk.innerHTML = '';
+    return;
+  }
   lastDesk = desk;
   searchBox.setDesk(desk);
   // External change detection (R-19): fingerprint scan vs index.
@@ -727,6 +733,14 @@ async function init() {
   }
   renderNotConnected();
 }
+
+// Scene stack click → open that stack level (DOM overlay above the scene).
+window.addEventListener('oceanview:focus-stack', (e) => {
+  const path = e.detail?.path;
+  if (!path) return;
+  route = { view: 'desk', stackPath: path };
+  refresh();
+});
 
 els.connect.addEventListener('click', onConnect);
 els.restore.addEventListener('click', onRestore);
