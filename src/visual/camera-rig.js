@@ -4,11 +4,11 @@
 // exponential lerp smoothing, welcome drift on load (interruptible).
 export function createCameraRig({ camera, domElement, config = {} }) {
   const cfg = {
-    yawRange: (config.yawRange ?? 22) * (Math.PI / 180),
-    pitchUp: config.pitchUp ?? 0.42, // rad, looking up at the window
-    pitchDown: config.pitchDown ?? -0.18, // rad, looking down at the desk
+    yawRange: (config.yawRange ?? 15) * (Math.PI / 180),
+    pitchUp: config.pitchUp ?? 0.13, // rad, looking straight into the window
+    pitchDown: config.pitchDown ?? -0.62, // rad, desk fills ~90% of the frame
     deadZone: config.deadZone ?? 0.12,
-    lerp: config.lerp ?? 0.08,
+    lerp: config.lerp ?? 0.05,
     driftMs: config.driftMs ?? 1500,
     ...config,
   };

@@ -86,7 +86,7 @@ function makeTaskSheet({ text, overdue }, index) {
   label.rotation.x = -Math.PI / 2;
   label.position.y = 0.005;
   group.add(label);
-  group.position.set(-1.6 + (index % 3) * 1.1, 0.001, Math.floor(index / 3) * 0.7);
+  group.position.set(-1.1 + (index % 3) * 1.1, 0.766, 1.15 + Math.floor(index / 3) * 0.5);
   group.rotation.y = (Math.random() - 0.5) * 0.06;
   return group;
 }
@@ -102,22 +102,22 @@ export function createScene({ canvas, state, onZoneClick, config = {} }) {
   scene.background = new THREE.Color(theme === 'oceanview' ? 0x9ec9dd : 0xf4f6f8);
 
   const camera = new THREE.PerspectiveCamera(55, 2, 0.1, 60);
-  camera.position.set(0, 1.35, 2.2); // seated eye height, near desk edge
-  camera.lookAt(0, 1.0, 0);
+  camera.position.set(0, 1.6, 2.45); // higher seated eye height, desk reaches the viewer
+  camera.lookAt(0, 0.85, 0.2);
 
-  // Lights (synchronized with the panorama in the oceanview preset later).
-  const hemi = new THREE.HemisphereLight(0xffffff, 0x8a7a66, theme === 'oceanview' ? 0.9 : 1.1);
+  // Lights: warm window light (references: sunlit anime desk).
+  const hemi = new THREE.HemisphereLight(0xfff2e0, 0x6b5a48, theme === 'oceanview' ? 1.0 : 1.1);
   scene.add(hemi);
-  const sun = new THREE.DirectionalLight(0xfff2dd, theme === 'oceanview' ? 1.4 : 0.9);
-  sun.position.set(-2.5, 3, -2); // from the window
+  const sun = new THREE.DirectionalLight(0xffe6c0, theme === 'oceanview' ? 1.7 : 0.9);
+  sun.position.set(-2.5, 3, -1.5); // from the window
   scene.add(sun);
 
-  // Desk surface.
+  // Desk surface: deeper so it reaches the viewer at the bottom camera anchor.
   const desk = new THREE.Mesh(
-    new THREE.BoxGeometry(4.2, 0.08, 2.6),
+    new THREE.BoxGeometry(4.2, 0.08, 3.4),
     new THREE.MeshStandardMaterial({ color: 0xb28a5f, roughness: 0.7 }),
   );
-  desk.position.set(0, 0.72, 0.35);
+  desk.position.set(0, 0.72, 0.55);
   scene.add(desk);
 
   // Environment layer (window + panorama) — the switchable oceanview layer.
@@ -144,6 +144,42 @@ export function createScene({ canvas, state, onZoneClick, config = {} }) {
     );
     sill.position.set(0, 0.9, -1.03);
     environment.add(sill);
+    // Wall around the window (references: warm room, window pops).
+    const wallMat = new THREE.MeshStandardMaterial({ color: 0x37424e, roughness: 0.95 });
+    const wallDefs = [
+      [7.2, 1.2, 0, 4.05, -1.32],
+      [1.5, 3.6, -2.85, 2.0, -1.32],
+      [1.5, 3.6, 2.85, 2.0, -1.32],
+      [7.2, 0.62, 0, 0.29, -1.32],
+    ];
+    for (const [w, h, x, y, z] of wallDefs) {
+      const wall = new THREE.Mesh(new THREE.PlaneGeometry(w, h), wallMat);
+      wall.position.set(x, y, z);
+      environment.add(wall);
+    }
+    // Sill trinkets: a small plant and two books (placeholders until A0 props).
+    const pot = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.09, 0.07, 0.16, 16),
+      new THREE.MeshStandardMaterial({ color: 0xb5643c, roughness: 0.8 }),
+    );
+    pot.position.set(-1.6, 1.01, -1.03);
+    environment.add(pot);
+    const leaves = new THREE.Mesh(
+      new THREE.SphereGeometry(0.16, 16, 12),
+      new THREE.MeshStandardMaterial({ color: 0x4f7a4a, roughness: 0.9 }),
+    );
+    leaves.position.set(-1.6, 1.19, -1.03);
+    environment.add(leaves);
+    const book1 = new THREE.Mesh(
+      new THREE.BoxGeometry(0.28, 0.05, 0.2),
+      new THREE.MeshStandardMaterial({ color: 0x8a4b3a, roughness: 0.85 }),
+    );
+    book1.position.set(1.5, 0.98, -1.03);
+    environment.add(book1);
+    const book2 = book1.clone();
+    book2.position.y = 1.03;
+    book2.rotation.y = 0.2;
+    environment.add(book2);
     // Placeholder panorama gradient (A0 track replaces this with a real image).
     const skyCanvas = document.createElement('canvas');
     skyCanvas.width = 64;
@@ -199,7 +235,7 @@ export function createScene({ canvas, state, onZoneClick, config = {} }) {
       mesh.position.set(
         Math.sin(angle) * radius,
         0.76,
-        2.2 - Math.cos(angle) * radius,
+        2.45 - Math.cos(angle) * radius,
       );
       mesh.userData.entry = entry;
       stacksLayer.add(mesh);
@@ -220,7 +256,7 @@ export function createScene({ canvas, state, onZoneClick, config = {} }) {
     }
     // The always-visible blank sheet (capture entry, R-08).
     const blank = makeTaskSheet({ text: '+ New note (N)' }, 8);
-    blank.position.set(0, 0.001, 1.35);
+    blank.position.set(0, 0.766, 1.95);
     blank.userData.blank = true;
     zoneLayer.add(blank);
   }

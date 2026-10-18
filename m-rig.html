@@ -25,7 +25,7 @@
     });
   </script>
   <div class="hud">
-    <b>M-rig demo</b> — move the cursor: yaw ±22°, pitch anchors (up = window, down = desk), dead zone 12%, exp lerp.<br>
+    <b>M-rig demo</b> — move the cursor: yaw ±15°, pitch anchors (top = straight into the window, bottom = desk fills ~90%), dead zone 12%, smoothed lerp.<br>
     Welcome drift plays on load (~1.5 s) and is interrupted by any input.
   </div>
   <script type="module">
@@ -60,10 +60,10 @@
     sill.position.set(0, 0.9, -1.03);
     scene.add(sill);
     const desk = new THREE.Mesh(
-      new THREE.BoxGeometry(4.2, 0.08, 2.6),
+      new THREE.BoxGeometry(4.2, 0.08, 3.4),
       new THREE.MeshStandardMaterial({ color: 0xb28a5f }),
     );
-    desk.position.set(0, 0.72, 0.35);
+    desk.position.set(0, 0.72, 0.55);
     scene.add(desk);
     // Stacks on a semicircle around the viewer: left/right are as close as center.
     for (let i = 0; i < 5; i++) {
@@ -73,17 +73,18 @@
       );
       const t = i / 4;
       const angle = (-60 + t * 120) * (Math.PI / 180);
-      marker.position.set(Math.sin(angle) * 1.55, 0.8, 2.2 - Math.cos(angle) * 1.55);
+      marker.position.set(Math.sin(angle) * 1.55, 0.8, 2.45 - Math.cos(angle) * 1.55);
       scene.add(marker);
     }
 
-    scene.add(new THREE.HemisphereLight(0xffffff, 0x8a7a66, 1.0));
-    const sun = new THREE.DirectionalLight(0xfff2dd, 1.2);
-    sun.position.set(-2.5, 3, -2);
+    scene.add(new THREE.HemisphereLight(0xfff2e0, 0x6b5a48, 1.0));
+    const sun = new THREE.DirectionalLight(0xffe6c0, 1.7);
+    sun.position.set(-2.5, 3, -1.5);
     scene.add(sun);
 
     const camera = new THREE.PerspectiveCamera(55, 2, 0.1, 60);
-    camera.position.set(0, 1.35, 2.2);
+    camera.position.set(0, 1.6, 2.45);
+    camera.lookAt(0, 0.85, 0.2);
 
     const rig = createCameraRig({ camera, domElement: canvas });
     rig.attach();

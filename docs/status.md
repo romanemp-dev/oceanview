@@ -22,6 +22,14 @@ In progress
 
 Nothing yet.
 
+Wave 7 step 2 (2026-10-19, user feedback + visual references): camera raised to
+1.6 m and pulled to the desk edge; pitch anchors re-tuned — top = straight into
+the window, bottom = desk fills ~90% of the frame; yaw reduced to ±15° and
+lerp slowed for calmer tracking; desk deepened to reach the viewer; warm
+window light, wall around the window, windowsill with placeholder props
+(plant, books); working-zone sheets now sit on the desk surface (y fix).
+Scene toggle button added to the topbar (off → minimal → oceanview).
+
 HANDOFF.md added (repo root): full handoff for external AI agents — project
 description, file map, data model, architecture, current stage, ordered next
 steps, verification checklist.

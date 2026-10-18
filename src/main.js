@@ -24,6 +24,7 @@ const els = {
   restore: document.getElementById('btn-restore'),
   disconnect: document.getElementById('btn-disconnect'),
   trash: document.getElementById('btn-trash'),
+  scene: document.getElementById('btn-scene'),
   desk: document.getElementById('desk'),
 };
 
@@ -422,7 +423,28 @@ function pickOption(title, options) {
   });
 }
 
-// ---------- onboarding (D-014) ----------
+function visualMode() {
+  try {
+    const raw = window.localStorage.getItem('oceanview-visual');
+    if (raw === null) return 'off';
+    const cfg = JSON.parse(raw);
+    return cfg.theme === 'oceanview' ? 'oceanview' : 'minimal';
+  } catch {
+    return 'off';
+  }
+}
+
+function updateSceneButton() {
+  els.scene.textContent = `Scene: ${visualMode()}`;
+}
+
+els.scene.addEventListener('click', () => {
+  const order = ['off', 'minimal', 'oceanview'];
+  const next = order[(order.indexOf(visualMode()) + 1) % order.length];
+  if (next === 'off') window.localStorage.removeItem('oceanview-visual');
+  else window.localStorage.setItem('oceanview-visual', JSON.stringify({ theme: next }));
+  window.location.reload();
+});
 
 function buildWelcome() {
   const hero = el('div', 'hero');
@@ -612,6 +634,8 @@ async function connectFlow(handle) {
   setStatus(`Workspace: ${handle.name}`);
   show(els.disconnect);
   show(els.trash);
+  show(els.scene);
+  updateSceneButton();
   hide(els.connect);
   hide(els.restore);
   // Visual scene (Wave 7): mounts only when enabled via localStorage.
