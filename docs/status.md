@@ -22,6 +22,13 @@ In progress
 
 Nothing yet.
 
+Fixed (2026-10-19, user report): blank app shell (only brand + status text) —
+src/visual/mount.js imported './visual/scene.js' from inside src/visual/,
+resolving to a 404 and breaking the whole module graph. Imports corrected;
+stray duplicate files (src/core/desk.js, src/ui/main.js) removed. Added
+scripts/check-imports.mjs — a static import checker (run it before commits);
+all 24 module files pass.
+
 Wave 7 step 3 (2026-10-19, user references): A0 panorama landed — the real
 window view (assets/panorama/bay-view.jpg, user-provided reference) is
 cover-fitted into the window with UV crop; POV reference applied: window

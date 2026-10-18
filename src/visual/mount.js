@@ -1,8 +1,8 @@
 // Visual scene bootstrap (Wave 7): mounts the 3D desk as the HOME state and
 // keeps the DOM overlay as the editing layer (D-018). The scene subscribes to
 // desk state; it never reads files itself.
-import { createScene } from './visual/scene.js';
-import { createCameraRig } from './visual/camera-rig.js';
+import { createScene } from './scene.js';
+import { createCameraRig } from './camera-rig.js';
 
 let lastDeskState = null;
 let sceneHandle = null;
