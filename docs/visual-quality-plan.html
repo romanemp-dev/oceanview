@@ -1,0 +1,260 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Oceanview — как довести сцену до «кадра из аниме»</title>
+<style>
+  :root {
+    --bg: #0e1116;
+    --ink: #e9e2d6;
+    --muted: #9a9388;
+    --line: rgba(233, 226, 214, 0.14);
+    --accent: #e0a458;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font: 16px/1.65 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  }
+  .wrap { max-width: 860px; margin: 0 auto; padding: 0 28px 96px; }
+  header.cover { padding: 96px 0 64px; border-bottom: 1px solid var(--line); }
+  .kicker {
+    font: 12px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace;
+    letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted);
+    margin-bottom: 28px;
+  }
+  h1 {
+    font-family: "Iowan Old Style", "Palatino Linotype", Georgia, serif;
+    font-weight: 500; font-size: clamp(34px, 5vw, 52px); line-height: 1.08;
+    letter-spacing: -0.015em; margin: 0 0 24px; max-width: 18ch;
+  }
+  h1 em { font-style: italic; color: var(--accent); }
+  .lede { font-size: 19px; line-height: 1.55; color: var(--ink); max-width: 62ch; margin: 0 0 40px; }
+  .meta {
+    display: flex; gap: 32px; flex-wrap: wrap;
+    font: 12.5px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace;
+    color: var(--muted);
+  }
+  .meta b { display: block; color: var(--ink); font-weight: 500; margin-top: 2px; letter-spacing: 0.02em; }
+  nav.toc { padding: 36px 0; border-bottom: 1px solid var(--line); }
+  nav.toc ol { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 8px 28px; }
+  nav.toc a { color: var(--ink); text-decoration: none; font-size: 14.5px; }
+  nav.toc a:hover { color: var(--accent); }
+  nav.toc .num { color: var(--muted); font-family: ui-monospace, Menlo, monospace; font-size: 12px; margin-right: 10px; }
+  section { padding: 56px 0 8px; border-bottom: 1px solid var(--line); }
+  section:last-of-type { border-bottom: 0; }
+  h2 {
+    font-family: "Iowan Old Style", Georgia, serif; font-weight: 500;
+    font-size: clamp(24px, 3vw, 32px); letter-spacing: -0.01em; line-height: 1.2;
+    margin: 0 0 8px;
+  }
+  .sec-num { font: 12px/1 ui-monospace, Menlo, monospace; color: var(--accent); letter-spacing: 0.14em; display: block; margin-bottom: 14px; }
+  h3 { font-size: 17px; font-weight: 600; margin: 32px 0 8px; letter-spacing: 0.01em; }
+  p { max-width: 68ch; margin: 12px 0; }
+  .muted { color: var(--muted); }
+  a { color: var(--accent); text-decoration: none; border-bottom: 1px solid rgba(224, 164, 88, 0.35); }
+  a:hover { border-bottom-color: var(--accent); }
+  .table-wrap { overflow-x: auto; margin: 24px 0; }
+  table { border-collapse: collapse; width: 100%; font-size: 14.5px; }
+  th, td { text-align: left; padding: 12px 14px 12px 0; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { font: 11.5px/1.4 ui-monospace, Menlo, monospace; text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); font-weight: 500; }
+  td.num { font-family: ui-monospace, Menlo, monospace; color: var(--accent); white-space: nowrap; }
+  .callout { border-left: 1px solid var(--accent); padding: 4px 0 4px 20px; margin: 28px 0; max-width: 66ch; }
+  .callout p { margin: 6px 0; }
+  ul.clean { padding-left: 20px; max-width: 68ch; }
+  ul.clean li { margin: 8px 0; }
+  ul.clean li::marker { color: var(--accent); }
+  .tier { border-top: 1px solid var(--line); padding: 24px 0 8px; }
+  .tier:first-of-type { border-top: 0; }
+  .tier-head { display: flex; align-items: baseline; gap: 16px; flex-wrap: wrap; margin-bottom: 6px; }
+  .tier-name { font-family: "Iowan Old Style", Georgia, serif; font-size: 21px; }
+  .tier-tag { font: 11px/1 ui-monospace, Menlo, monospace; text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); }
+  .tier-time { margin-left: auto; font: 12px/1 ui-monospace, Menlo, monospace; color: var(--accent); }
+  footer { padding: 48px 0 0; color: var(--muted); font-size: 13px; max-width: 68ch; }
+  code { font-family: ui-monospace, Menlo, monospace; font-size: 0.92em; background: rgba(233,226,214,0.07); padding: 1px 5px; border-radius: 3px; }
+  @media (max-width: 640px) {
+    .wrap { padding: 0 18px 64px; }
+    header.cover { padding: 64px 0 44px; }
+    .lede { font-size: 17px; }
+    .meta { gap: 18px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="cover">
+  <div class="kicker">Oceanview · визуальное направление · внутренний документ</div>
+  <h1>Кадр из аниме: как довести сцену <em>до уровня «Ваше имя»</em></h1>
+  <p class="lede">Честный разбор: что реально влияет на «аниме-картинку» в Three.js, какие есть уровни качества, сколько они стоят по времени и что из этого стоит внедрять в Oceanview — на Mac и на телефоне.</p>
+  <div class="meta">
+    <div>ДАТА<b>20 октября 2026</b></div>
+    <div>ПРОЕКТ<b>Oceanview · R-17 / Wave 7</b></div>
+    <div>СТЕК<b>Three.js r171, ESM, без бандлера</b></div>
+    <div>СТАТУС<b>Предложение к обсуждению</b></div>
+  </div>
+</header>
+
+<nav class="toc">
+  <ol>
+    <li><a href="#answer"><span class="num">01</span>Короткий ответ</a></li>
+    <li><a href="#pillars"><span class="num">02</span>Из чего складывается кадр</a></li>
+    <li><a href="#tiers"><span class="num">03</span>Четыре уровня качества</a></li>
+    <li><a href="#stack"><span class="num">04</span>Технический стек и ссылки</a></li>
+    <li><a href="#mobile"><span class="num">05</span>Мобильные устройства</a></li>
+    <li><a href="#plan"><span class="num">06</span>План внедрения</a></li>
+    <li><a href="#limits"><span class="num">07</span>Честные ограничения</a></li>
+  </ol>
+</nav>
+
+<section id="answer">
+  <span class="sec-num">01</span>
+  <h2>Короткий ответ</h2>
+  <p><strong>Да, Three.js позволяет получить картинку уровня качественного аниме-фона.</strong> Ограничение — не движок, а художественная постановка, нарисованные ассеты и пост-обработка. В аниме фон — это нарисованный кадр; в вебе ближе всего к нему гибрид «нарисованная панорама + 3D-объекты с toon-шейдингом» (2.5D), а не попытка честно отрендерить всё в реальном времени.</p>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Слагаемое</th><th class="num">Вклад в «вау»</th><th>Что это значит на практике</th></tr></thead>
+      <tbody>
+        <tr><td>Художественная постановка и композиция</td><td class="num">~35%</td><td>Фиксированная камера, слои глубины, цветовой сценарий, ритм кадра</td></tr>
+        <tr><td>Нарисованные ассеты</td><td class="num">~30%</td><td>Панорама, текстуры дерева/бумаги, пропсы — руками или AI + доработка</td></tr>
+        <tr><td>Свет</td><td class="num">~15%</td><td>Тёплый ключевой свет из окна, холодные тени, rim light</td></tr>
+        <tr><td>Пост-обработка</td><td class="num">~12%</td><td>Bloom, ACES-тонмаппинг, LUT/цветокор, виньетка, зерно, DOF</td></tr>
+        <tr><td>Технологии и шейдеры</td><td class="num">~8%</td><td>Toon-материалы, контуры, шейдер неба — важны, но сами по себе не «делают кадр»</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="muted">Оценка долей — экспертная, для приоритизации усилий, а не измерение.</p>
+</section>
+
+<section id="pillars">
+  <span class="sec-num">02</span>
+  <h2>Из чего складывается «кадр из аниме»</h2>
+
+  <h3>2.1. 2.5D: рисуем фон, а не рендерим мир</h3>
+  <p>В аниме фон — живопись. Самый надёжный путь в вебе: панорама за окном как нарисованное изображение (4–6 ключевых кадров по времени суток), стол и пропсы — 3D с упрощёнными материалами. Это даёт 80% впечатления при малой цене; именно так уже устроен наш A0-трек.</p>
+
+  <h3>2.2. Свет как в кино</h3>
+  <p>Один тёплый источник из окна (ключевой), холодный заполняющий, тонкий rim light по краям стопок. Контраст тёплого и холодного — главный «синкаевский» приём. Тени мягкие, без резких краёв; на столе — световое пятно от окна.</p>
+
+  <h3>2.3. Toon-шейдинг и контуры</h3>
+  <p>Для объектов — <code>MeshToonMaterial</code> с градиентной картой (2–3 ступени), а не фотореалистичный PBR. Контуры: либо inverted hull (второй меш чуть больше с <code>BackSide</code>), либо пост-обработка edge detection. Контур толщиной 1–2 px придаёт «рисованность».</p>
+
+  <h3>2.4. Пост-обработка — половина магии</h3>
+  <p>Bloom на светах (окно, блики на стекле), ACES-тонмаппинг, лёгкая виньетка, зерно 2–3%, глубина резкости на дальнем плане. Без этого даже хорошая геометрия выглядит «пластиковым рендером».</p>
+
+  <h3>2.5. Движение</h3>
+  <p>Медленный дрейф камеры, параллакс слоёв, пылинки в луче света, блики на воде (спрайты), редкие птицы. Опционально — «аниме-24 fps»: анимация с шагом 1/24 с даёт рисованный эффект, но для UI это скорее эксперимент.</p>
+</section>
+
+<section id="tiers">
+  <span class="sec-num">03</span>
+  <h2>Четыре уровня качества</h2>
+  <p>Каждый следующий уровень включает предыдущий. Время — грубая оценка для одного разработчика.</p>
+
+  <div class="tier">
+    <div class="tier-head"><span class="tier-name">Tier 0 · Гигиена рендера</span><span class="tier-tag">фундамент</span><span class="tier-time">1–2 дня</span></div>
+    <p>ACES-тонмаппинг и экспозиция, sRGB-текстуры, туман по глубине, аккуратная цветовая палитра, DPR cap. Убирает «плоскость» и пересветы — сразу заметный скачок.</p>
+    <p class="muted">Ссылки: <a href="https://threejs.org/docs/#api/en/renderers/WebGLRenderer.toneMappingExposure">toneMappingExposure</a>, <a href="https://threejs-journey.com/lessons/realistic-render">Three.js Journey — realistic render</a>.</p>
+  </div>
+
+  <div class="tier">
+    <div class="tier-head"><span class="tier-name">Tier 1 · Аниме-шейдинг</span><span class="tier-tag">стиль</span><span class="tier-time">~1 неделя</span></div>
+    <p>Toon-материалы с градиентной картой, контуры, rim light, эмиссивные акценты (лампа, блики). Объекты перестают быть «3D-примитивами» и читаются как рисунок.</p>
+    <p class="muted">Ссылки: <a href="https://threejs.org/docs/pages/MeshToonMaterial.html">MeshToonMaterial</a>, <a href="https://sbcode.net/threejs/meshtoonmaterial">туториал SBCODE</a>, <a href="https://www.maya-ndljk.com/blog/threejs-basic-toon-shader">кастомный toon-шейдер</a>, <a href="http://imaginaryblend.com/2018/06/26/anime-toon-shading">теория Anime Toon Shading</a>, <a href="https://discourse.threejs.org/t/how-to-create-this-smooth-cartoon-style-with-outlines-in-three-js/60862">тред про контуры</a>.</p>
+  </div>
+
+  <div class="tier">
+    <div class="tier-head"><span class="tier-name">Tier 2 · Сцена-кадр</span><span class="tier-tag">основная цель</span><span class="tier-time">2–3 недели</span></div>
+    <p>Панорама 4–6 keyframes по времени суток, нарисованные текстуры стола и бумаги, полный пост-стек: bloom + DOF + виньетка + зерно + LUT. Пылинки, блики на воде, мягкие тени. Это уже «кадр», а не «сцена».</p>
+    <p class="muted">Ссылки: <a href="https://threejs.org/examples/webgl_postprocessing_unreal_bloom.html">UnrealBloomPass (официальный пример)</a>, <a href="https://github.com/pmndrs/postprocessing">pmndrs/postprocessing</a>, <a href="https://tympanus.net/codrops/hub/tag/three-js">Codrops — галерея Three.js</a>.</p>
+  </div>
+
+  <div class="tier">
+    <div class="tier-head"><span class="tier-name">Tier 3 · Идеальная картинка</span><span class="tier-tag">долгий трек</span><span class="tier-time">месяц+</span></div>
+    <p>Blender-ассеты с hand-painted текстурами и запечённым светом, кастомные шейдеры неба/воды, HDR-панорама с бликами, возможно — Gaussian Splatting для фона. Здесь уже нужен художник/3D-дженералист, а не только код.</p>
+    <p class="muted">Ссылки: <a href="https://thebookofshaders.com">The Book of Shaders</a>, <a href="https://threejs.org/examples/">каталог примеров three.js</a>.</p>
+  </div>
+</section>
+
+<section id="stack">
+  <span class="sec-num">04</span>
+  <h2>Технический стек и ссылки</h2>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Задача</th><th>Инструмент</th><th>Ссылка</th></tr></thead>
+      <tbody>
+        <tr><td>Тонмаппинг, экспозиция</td><td>WebGLRenderer (ACESFilmic)</td><td><a href="https://threejs.org/docs/#api/en/renderers/WebGLRenderer.toneMappingExposure">docs</a></td></tr>
+        <tr><td>Bloom, DOF, виньетка, зерно, SMAA</td><td>pmndrs/postprocessing</td><td><a href="https://github.com/pmndrs/postprocessing">github</a></td></tr>
+        <tr><td>Эталонный bloom-пример</td><td>three.js examples</td><td><a href="https://threejs.org/examples/webgl_postprocessing_unreal_bloom.html">unreal bloom</a></td></tr>
+        <tr><td>Toon-материал</td><td>MeshToonMaterial + gradientMap</td><td><a href="https://threejs.org/docs/pages/MeshToonMaterial.html">docs</a> · <a href="https://sbcode.net/threejs/meshtoonmaterial">туториал</a></td></tr>
+        <tr><td>Кастомный cel-шейдер</td><td>ShaderMaterial</td><td><a href="https://www.maya-ndljk.com/blog/threejs-basic-toon-shader">туториал</a></td></tr>
+        <tr><td>Контуры объектов</td><td>inverted hull / post edge</td><td><a href="https://discourse.threejs.org/t/how-to-create-this-smooth-cartoon-style-with-outlines-in-three-js/60862">тред</a></td></tr>
+        <tr><td>Шейдеры неба и воды</td><td>The Book of Shaders</td><td><a href="https://thebookofshaders.com">thebookofshaders.com</a></td></tr>
+        <tr><td>Производительность</td><td>100 tips / R3F scaling</td><td><a href="https://www.utsubo.com/threejs-best-practices-100-tips">utsubo</a> · <a href="https://r3f.docs.pmnd.rs/advanced/scaling-performance">pmndrs</a></td></tr>
+        <tr><td>Вдохновение</td><td>Codrops Creative Hub</td><td><a href="https://tympanus.net/codrops/hub/tag/three-js">three.js demos</a></td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="muted">Внешние ссылки — для изучения приёмов; в приложении зависимости не добавляем без отдельного решения. Vendored-подход сохраняем.</p>
+</section>
+
+<section id="mobile">
+  <span class="sec-num">05</span>
+  <h2>Мобильные устройства</h2>
+  <p>«Идеально на ПК и на телефоне» достигается не одним пресетом, а системой quality tiers: одна и та же сцена, разные бюджеты эффектов.</p>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Параметр</th><th>Desktop / Mac</th><th>Mobile</th></tr></thead>
+      <tbody>
+        <tr><td>DPR</td><td>до 2.0</td><td><code>min(devicePixelRatio, 1.5)</code>, адаптивно к FPS</td></tr>
+        <tr><td>Bloom</td><td>полное разрешение</td><td>half-res, порог выше, радиус меньше</td></tr>
+        <tr><td>DOF</td><td>вкл</td><td>выкл (дорого и менее заметно на маленьком экране)</td></tr>
+        <tr><td>Тени</td><td>мягкие, 1 источник</td><td>запечённое пятно света (текстура), без realtime-теней</td></tr>
+        <tr><td>Панорама</td><td>AVIF/WebP 4–6K</td><td>AVIF 2–3K, lazy-load по time-of-day</td></tr>
+        <tr><td>Текстуры</td><td>PNG/WebP</td><td>KTX2/Basis (сжатие GPU)</td></tr>
+        <tr><td>Частицы</td><td>200–400</td><td>40–80, отключаемы</td></tr>
+        <tr><td>Fallback</td><td>—</td><td>тема <code>minimal</code> без сцены (уже есть)</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>Адаптивное разрешение: измеряем FPS, при просадке ниже 50 — снижаем DPR на 0.1–0.2, при стабильных 60 — возвращаем. Это дешёвый и надёжный способ держать «плавно и красиво» на всём парке устройств.</p>
+</section>
+
+<section id="plan">
+  <span class="sec-num">06</span>
+  <h2>План внедрения в Oceanview</h2>
+  <ul class="clean">
+    <li><strong>Шаг 1 (1–2 дня).</strong> Renderer: ACES, экспозиция, sRGB, fog; вынести параметры в config темы.</li>
+    <li><strong>Шаг 2 (2–3 дня).</strong> Пост-стек: bloom + виньетка + зерно; half-res на мобильных.</li>
+    <li><strong>Шаг 3 (~1 неделя).</strong> Toon-материалы и контуры для стопок, стакана, пропсов; rim light.</li>
+    <li><strong>Шаг 4 (1–2 недели, контент).</strong> A0: 4–6 keyframes панорамы (утро/день/закат/ночь) и плавный переход по времени; свет стола синхронизирован.</li>
+    <li><strong>Шаг 5 (параллельно).</strong> Нарисованные текстуры стола/бумаги; пылинки; блики на воде.</li>
+    <li><strong>Шаг 6.</strong> Мобильный quality tier + адаптивный DPR; проверка на iPhone/Android.</li>
+  </ul>
+  <div class="callout">
+    <p><strong>Рекомендация.</strong> Не гнаться за Tier 3 сразу. Tier 1 + Tier 2 дают 90% «вау» при разумной цене; Tier 3 — отдельный художественный проект, который имеет смысл начинать только после того, как сцена станет основным интерфейсом.</p>
+  </div>
+</section>
+
+<section id="limits">
+  <span class="sec-num">07</span>
+  <h2>Честные ограничения</h2>
+  <ul class="clean">
+    <li>Three.js в браузере не даст честного path tracing и тяжёлого GI в реальном времени — но аниме-кадру это и не нужно: там живопись, а не физика.</li>
+    <li>«Идеальная картинка» — это в первую очередь человеко-недели художника: панорама, текстуры, цветокор. Код — меньшая часть.</li>
+    <li>Мобильный веб ограничен теплом и батареей: тяжёлый пост-стек держим в пределах 2–3 проходов, остальное — запекаем.</li>
+    <li>Любые тяжёлые ассеты (панорама 4–6K) требуют lazy-loading и прогрессивной загрузки, иначе первый экран будет «серым».</li>
+  </ul>
+</section>
+
+<footer>
+  <p>Документ подготовлен как предложение к обсуждению. Технические ссылки ведут на официальную документацию three.js, pmndrs/postprocessing и профильные туториалы; примеры приведены как ориентиры качества, а не как обязательные зависимости.</p>
+</footer>
+
+</div>
+</body>
+</html>
