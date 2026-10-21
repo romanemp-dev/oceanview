@@ -538,10 +538,22 @@ input[type="date"].due-chip.overdue { background: var(--danger-soft); color: var
   display: block;
   z-index: 0;
 }
+/* Screen-space vignette above the canvas (Tier 0 colour grade, no GPU cost). */
+.scene-vignette {
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.5s ease;
+  background: radial-gradient(ellipse at 50% 42%, rgba(8, 12, 16, 0) 52%, rgba(8, 12, 16, 0.30) 100%);
+}
+.scene-vignette.on { opacity: 1; }
+
 /* DOM overlay above the canvas; clicks on empty areas pass through to the scene. */
 .desk {
   position: relative;
-  z-index: 1;
+  z-index: 2;
   pointer-events: none;
 }
 .desk > * {

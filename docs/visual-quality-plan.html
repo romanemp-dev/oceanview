@@ -101,6 +101,7 @@
 
 <nav class="toc">
   <ol>
+    <li><a href="#scope"><span class="num">00</span>Скоуп v1.0</a></li>
     <li><a href="#answer"><span class="num">01</span>Короткий ответ</a></li>
     <li><a href="#pillars"><span class="num">02</span>Из чего складывается кадр</a></li>
     <li><a href="#tiers"><span class="num">03</span>Четыре уровня качества</a></li>
@@ -110,6 +111,13 @@
     <li><a href="#limits"><span class="num">07</span>Честные ограничения</a></li>
   </ol>
 </nav>
+
+<section id="scope">
+  <span class="sec-num">00</span>
+  <h2>Скоуп v1.0</h2>
+  <p>Решение от 21.10.2026: визуальный релиз v1.0 сужен до <strong>одного фона — одного времени суток</strong> — и доводится до близкого к идеальному качества на ПК и мобильных. Несколько состояний времени суток и WebXR переносятся на после v1.0.</p>
+  <p>Практически это значит: одна нарисованная панорама вместо 4–6 ключевых кадров, фокус на свете, пост-обработке и мобильном качестве; блендинг по времени суток и VR — отдельные треки после релиза.</p>
+</section>
 
 <section id="answer">
   <span class="sec-num">01</span>
@@ -174,7 +182,7 @@
   </div>
 
   <div class="tier">
-    <div class="tier-head"><span class="tier-name">Tier 3 · Идеальная картинка</span><span class="tier-tag">долгий трек</span><span class="tier-time">месяц+</span></div>
+    <div class="tier-head"><span class="tier-name">Tier 3 · Идеальная картинка</span><span class="tier-tag">после v1.0</span><span class="tier-time">месяц+</span></div>
     <p>Blender-ассеты с hand-painted текстурами и запечённым светом, кастомные шейдеры неба/воды, HDR-панорама с бликами, возможно — Gaussian Splatting для фона. Здесь уже нужен художник/3D-дженералист, а не только код.</p>
     <p class="muted">Ссылки: <a href="https://thebookofshaders.com">The Book of Shaders</a>, <a href="https://threejs.org/examples/">каталог примеров three.js</a>.</p>
   </div>
@@ -231,12 +239,12 @@
     <li><strong>Шаг 1 (1–2 дня).</strong> Renderer: ACES, экспозиция, sRGB, fog; вынести параметры в config темы.</li>
     <li><strong>Шаг 2 (2–3 дня).</strong> Пост-стек: bloom + виньетка + зерно; half-res на мобильных.</li>
     <li><strong>Шаг 3 (~1 неделя).</strong> Toon-материалы и контуры для стопок, стакана, пропсов; rim light.</li>
-    <li><strong>Шаг 4 (1–2 недели, контент).</strong> A0: 4–6 keyframes панорамы (утро/день/закат/ночь) и плавный переход по времени; свет стола синхронизирован.</li>
+    <li><strong>Шаг 4 (3–5 дней, контент).</strong> A0 для v1.0: ОДНА панорама (одно время суток) в максимальном качестве; свет стола синхронизирован с ней. Набор состояний суток — после v1.0.</li>
     <li><strong>Шаг 5 (параллельно).</strong> Нарисованные текстуры стола/бумаги; пылинки; блики на воде.</li>
     <li><strong>Шаг 6.</strong> Мобильный quality tier + адаптивный DPR; проверка на iPhone/Android.</li>
   </ul>
   <div class="callout">
-    <p><strong>Рекомендация.</strong> Не гнаться за Tier 3 сразу. Tier 1 + Tier 2 дают 90% «вау» при разумной цене; Tier 3 — отдельный художественный проект, который имеет смысл начинать только после того, как сцена станет основным интерфейсом.</p>
+    <p><strong>Рекомендация.</strong> Для v1.0 идём Tier 0 → Tier 1 → Tier 2 на одном фоне. Tier 3 (Blender-ассеты, HDR, splats) — после релиза, вместе с состояниями времени суток и WebXR.</p>
   </div>
 </section>
 

@@ -37,6 +37,7 @@ export function mountVisualScene({ canvas, onCaptureClick, onFail }) {
       }
     },
   });
+  document.getElementById('scene-vignette')?.classList.add('on');
   const rig = createCameraRig({ camera: sceneHandle.camera, domElement: canvas });
   sceneHandle.attachRig(rig);
 
@@ -103,6 +104,7 @@ export function mountVisualScene({ canvas, onCaptureClick, onFail }) {
     dispose() {
       sceneHandle?.dispose();
       sceneHandle = null;
+      document.getElementById('scene-vignette')?.classList.remove('on');
     },
   };
 }

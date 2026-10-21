@@ -98,23 +98,36 @@ function makeTaskSheet({ text, overdue }, index) {
 export function createScene({ canvas, state, onZoneClick, config = {} }) {
   const theme = config.theme ?? 'minimal';
 
+  const isMobile = (typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches)
+    || /iPhone|iPad|Android/i.test(navigator.userAgent);
+
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2)); // DPR cap (§8)
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, isMobile ? 1.5 : 2)); // DPR cap (§8)
   renderer.shadowMap.enabled = false;
+  // Tier 0: filmic tone mapping — kills the flat "plastic" look.
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = theme === 'oceanview' ? 1.12 : 1.0;
+  renderer.outputColorSpace = THREE.SRGBColorSpace;
 
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(theme === 'oceanview' ? 0x9ec9dd : 0xf4f6f8);
+  // Subtle atmospheric depth (barely visible indoors, helps the window view).
+  scene.fog = new THREE.Fog(theme === 'oceanview' ? 0xbcd4de : 0xf4f6f8, 6, 18);
 
   const camera = new THREE.PerspectiveCamera(55, 2, 0.02, 40);
   camera.position.set(CAMERA.x, CAMERA.y, CAMERA.z);
   camera.lookAt(0, CAMERA.y, 0);
 
   // Lights: warm window light (references: sunlit anime desk).
-  const hemi = new THREE.HemisphereLight(0xfff2e0, 0x6b5a48, theme === 'oceanview' ? 0.95 : 1.1);
+  // Tier 0 lighting: warm key from the window + cool fill from the room.
+  const hemi = new THREE.HemisphereLight(0xfff1dc, 0x5a4b3c, theme === 'oceanview' ? 0.55 : 1.0);
   scene.add(hemi);
-  const sun = new THREE.DirectionalLight(0xffe6c0, theme === 'oceanview' ? 1.25 : 0.9);
-  sun.position.set(-1.0, 2.0, -0.8);
+  const sun = new THREE.DirectionalLight(0xffd9a8, theme === 'oceanview' ? 2.2 : 1.0);
+  sun.position.set(-1.2, 2.4, -0.9);
   scene.add(sun);
+  const fill = new THREE.DirectionalLight(0xbfd4e8, theme === 'oceanview' ? 0.35 : 0.0);
+  fill.position.set(0.8, 1.4, 2.2);
+  scene.add(fill);
 
   // Desk surface.
   const desk = new THREE.Mesh(
@@ -243,6 +256,7 @@ export function createScene({ canvas, state, onZoneClick, config = {} }) {
         tex.offset.set((1 - planeAspect / imgAspect) / 2, 0);
       }
       tex.colorSpace = THREE.SRGBColorSpace;
+      tex.anisotropy = renderer.capabilities.getMaxAnisotropy();
       view.material.map = tex;
       view.material.needsUpdate = true;
     });
@@ -309,15 +323,20 @@ export function createScene({ canvas, state, onZoneClick, config = {} }) {
       })),
     ];
     const n = entries.length;
+    // Density control: more stacks → wider arc and smaller piles, so they stay
+    // readable and don't overlap (single-row semicircle keeps equal reach).
+    const scale = n > 8 ? 0.72 : n > 6 ? 0.82 : 1;
+    const arc = n > 8 ? (42 * Math.PI) / 180 : STACK_ANGLES;
+    const radius = n > 8 ? 0.85 : STACK_RADIUS;
     entries.forEach((entry, i) => {
       const t = n === 1 ? 0.5 : i / (n - 1);
-      const angle = -STACK_ANGLES + t * 2 * STACK_ANGLES;
+      const angle = -arc + t * 2 * arc;
       const mesh = makeStackMesh(entry);
-      if (n > 6) mesh.scale.setScalar(0.82);
+      mesh.scale.setScalar(scale);
       const target = new THREE.Vector3(
-        Math.sin(angle) * STACK_RADIUS,
+        Math.sin(angle) * radius,
         DESK.y + DESK.h / 2,
-        CAMERA.z - Math.cos(angle) * STACK_RADIUS,
+        CAMERA.z - Math.cos(angle) * radius,
       );
       mesh.position.copy(target);
       if (!stacksBuilt) {

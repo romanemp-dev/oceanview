@@ -1,6 +1,6 @@
 # Oceanview — project handoff for AI assistants
 
-_Last updated: 2026-10-19 (Wave 7 QA + blank-scene root cause)._
+_Last updated: 2026-10-21 (v1.0 visual scope fixed; Tier 0 shipped)._
 
 > Give this file (plus `AGENTS.md` and the `docs/` set) to any AI coding agent.
 > Read order: this file → `AGENTS.md` → `docs/product.md` → `docs/spec.md` →
@@ -26,7 +26,9 @@ dependencies (Three.js is vendored for the visual layer).
 - Done: R-01…R-13 (all P0), R-05 P1 (list/slides), R-14 search, R-15 slides
   preview, R-16 (covered by `scripts/serve.sh`), R-18 PWA.
 - **R-17 (final visual theme): planned** — requirements in
-  `docs/visual-spec.md`; Wave 7 steps 1–5 shipped (Three.js scene foundation + M-rig camera demo;
+  `docs/visual-spec.md`; v1.0 visual scope: ONE background / single time of day, near-ideal on
+desktop + mobile; time-of-day states and WebXR are post-v1.0 (D-023).
+Wave 7 steps 1–5 shipped (Three.js scene foundation + M-rig camera demo;
   camera framing per user feedback; A0 panorama from the user reference with
   cover-fit; POV props; v1 animations; QA pass with realistic scale and three
   camera anchors; render watchdog + DOM fallback; demo mode; no-store server).

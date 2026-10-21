@@ -135,3 +135,17 @@ storage adapter (OPFS or sync backend) following the architecture migration
 path; CameraRig input sources (gyro, xr-head) follow the same phasing.
 Consequences: v1 stays desktop mouse-only; no adapter API changes required
 now; phase 2/3 work is additive.
+
+D-023
+
+Context: v1.0 must land with one implementer (the agent) plus an art-director
+user and generative assets; visual quality is the top priority, not breadth.
+Decision: v1.0 visual scope = ONE static background (a single time of day)
+rendered at near-ideal quality on desktop and mobile. Multiple time-of-day
+states and WebXR are post-v1.0. The A0 track reduces to one painted panorama;
+desktop/mobile quality tiers are mandatory (DPR caps, effect budgets, minimal
+fallback).
+Consequences: one panorama asset to produce and polish; time-of-day blending
+code deferred; R-17 acceptance is judged on the single scene at three camera
+poses (window / rest / desk); Tier 1–2 of the visual plan are in scope, Tier 3
+is optional/post-v1.0.

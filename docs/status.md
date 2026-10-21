@@ -22,6 +22,13 @@ In progress
 
 Nothing yet.
 
+v1.0 visual scope (D-023, 2026-10-21): ONE static background (single time of
+day), near-ideal quality on desktop + mobile; time-of-day states and WebXR
+deferred post-v1.0. Tier 0 shipped: ACES filmic tone mapping + exposure,
+warm key / cool fill lighting, atmospheric fog, panorama anisotropy, mobile
+DPR cap (1.5), screen-space vignette, stack density layout for 10+ stacks
+(wider arc, smaller piles) — verified by screenshots.
+
 Root cause found for empty colored scene screens (2026-10-19): camera-rig.js
 was missing the pitchRest default, so the first tick produced NaN pitch →
 NaN camera quaternion → every object was frustum-culled, leaving only the
