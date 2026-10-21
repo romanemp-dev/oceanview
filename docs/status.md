@@ -22,6 +22,13 @@ In progress
 
 Nothing yet.
 
+Tier 1 shipped (2026-10-21): anime shading — MeshToonMaterial with a 3-step
+gradient ramp for paper piles and props, ink edges around piles (EdgesGeometry,
+not fat hulls), inverted-hull outlines for the sill props, cool rim light,
+procedural wood grain for the desk, room ambient so walls read as walls,
+task-sheet spacing fixed. Panorama prompt template added
+(docs/pano-prompt.md) for the single v1.0 background.
+
 v1.0 visual scope (D-023, 2026-10-21): ONE static background (single time of
 day), near-ideal quality on desktop + mobile; time-of-day states and WebXR
 deferred post-v1.0. Tier 0 shipped: ACES filmic tone mapping + exposure,

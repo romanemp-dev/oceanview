@@ -11,6 +11,30 @@ const WINDOW = { w: 1.4, h: 0.96, cy: 1.45, z: -0.62 };
 const STACK_RADIUS = 0.8;
 const STACK_ANGLES = Math.PI / 6; // ±30°
 
+// Tier 1: toon shading (3-step ramp) + ink outlines (inverted hull).
+function makeToonGradient(values = [0.5, 0.78, 1.0]) {
+  const data = new Uint8Array(values.length * 4);
+  values.forEach((v, i) => {
+    const c = Math.round(v * 255);
+    data[i * 4] = c;
+    data[i * 4 + 1] = c;
+    data[i * 4 + 2] = c;
+    data[i * 4 + 3] = 255;
+  });
+  const tex = new THREE.DataTexture(data, values.length, 1, THREE.RGBAFormat);
+  tex.minFilter = THREE.NearestFilter;
+  tex.magFilter = THREE.NearestFilter;
+  tex.needsUpdate = true;
+  return tex;
+}
+
+const TOON_RAMP = makeToonGradient();
+const OUTLINE_MAT = new THREE.MeshBasicMaterial({ color: 0x241c14, side: THREE.BackSide });
+
+function toon(color) {
+  return new THREE.MeshToonMaterial({ color, gradientMap: TOON_RAMP });
+}
+
 function labelTexture(text, { width = 512, height = 128, bg = 'rgba(255,255,255,0.94)', color = '#1f2933', font = '600 64px -apple-system, sans-serif' } = {}) {
   const canvas = document.createElement('canvas');
   canvas.width = width;
@@ -28,6 +52,40 @@ function labelTexture(text, { width = 512, height = 128, bg = 'rgba(255,255,255,
   return tex;
 }
 
+function woodTexture() {
+  const c = document.createElement('canvas');
+  c.width = 512;
+  c.height = 512;
+  const ctx = c.getContext('2d');
+  ctx.fillStyle = '#97744f';
+  ctx.fillRect(0, 0, 512, 512);
+  // Broad soft bands for tone variation.
+  for (let i = 0; i < 8; i++) {
+    ctx.fillStyle = `rgba(${70 + Math.floor(Math.random() * 24)}, ${50 + Math.floor(Math.random() * 16)}, ${30 + Math.floor(Math.random() * 12)}, 0.04)`;
+    ctx.fillRect(0, Math.random() * 512, 512, 24 + Math.random() * 60);
+  }
+  // Fine, barely visible grain.
+  for (let i = 0; i < 70; i++) {
+    const y = Math.random() * 512;
+    ctx.strokeStyle = `rgba(74, 54, 34, ${0.015 + Math.random() * 0.035})`;
+    ctx.lineWidth = 0.6 + Math.random() * 1.2;
+    ctx.beginPath();
+    for (let x = 0; x <= 512; x += 24) {
+      const dy = Math.sin((x + i * 37) / 90) * 3 + Math.sin((x + i * 91) / 31) * 1.4;
+      if (x === 0) ctx.moveTo(x, y + dy);
+      else ctx.lineTo(x, y + dy);
+    }
+    ctx.stroke();
+  }
+  const tex = new THREE.CanvasTexture(c);
+  tex.wrapS = THREE.RepeatWrapping;
+  tex.wrapT = THREE.RepeatWrapping;
+  tex.repeat.set(1.6, 1.2);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.anisotropy = 4;
+  return tex;
+}
+
 function makeSheet({ w = 0.24, h = 0.31, color = '#fdfdf8' } = {}) {
   const geo = new THREE.PlaneGeometry(w, h);
   const mat = new THREE.MeshStandardMaterial({ color, roughness: 0.85, metalness: 0 });
@@ -39,8 +97,8 @@ function makeSheet({ w = 0.24, h = 0.31, color = '#fdfdf8' } = {}) {
 function makeStackMesh({ name, count, accent = '#2f6f8f', dashed = false, overdue = false }) {
   const group = new THREE.Group();
   const sheets = Math.min(5 + (count % 3), 7);
-  const paper = new THREE.MeshStandardMaterial({ color: '#ffffff', roughness: 0.85 });
-  const edgeTint = new THREE.MeshStandardMaterial({ color: '#ece8dc', roughness: 0.9 });
+  const paper = toon('#fffdf6');
+  const edgeTint = toon('#efe9da');
   for (let i = 0; i < sheets; i++) {
     const sheet = new THREE.Mesh(new THREE.BoxGeometry(0.165, 0.012, 0.22), i % 2 ? paper : edgeTint);
     sheet.position.set((Math.random() - 0.5) * 0.012, i * 0.0125, (Math.random() - 0.5) * 0.012);
@@ -48,6 +106,13 @@ function makeStackMesh({ name, count, accent = '#2f6f8f', dashed = false, overdu
     group.add(sheet);
   }
   const topY = sheets * 0.0125;
+  // Crisp ink edges around the pile (thin lines, not a hull — keeps it clean).
+  const edge = new THREE.LineSegments(
+    new THREE.EdgesGeometry(new THREE.BoxGeometry(0.166, topY * 1.02, 0.221)),
+    new THREE.LineBasicMaterial({ color: 0x2a2118, transparent: true, opacity: 0.5 }),
+  );
+  edge.position.set(0, topY / 2, 0);
+  group.add(edge);
 
   const ribbon = new THREE.Mesh(
     new THREE.BoxGeometry(0.014, 0.002, 0.18),
@@ -59,7 +124,7 @@ function makeStackMesh({ name, count, accent = '#2f6f8f', dashed = false, overdu
   // Flat label lying on the pile (readable when looking down at the desk).
   const label = new THREE.Mesh(
     new THREE.PlaneGeometry(0.12, 0.038),
-    new THREE.MeshBasicMaterial({ map: labelTexture(`${name} · ${count}`, { width: 512, height: 128, font: '600 56px -apple-system, sans-serif' }), transparent: true }),
+    new THREE.MeshBasicMaterial({ map: labelTexture(`${name} · ${count}`, { width: 512, height: 128, bg: 'rgba(255,252,244,0.98)', color: '#1a1611', font: '600 54px -apple-system, sans-serif' }), transparent: true }),
   );
   label.rotation.x = -Math.PI / 2 + 0.16; // slight lean toward the viewer
   label.position.set(0, topY + 0.012, 0.07);
@@ -80,7 +145,7 @@ function makeStackMesh({ name, count, accent = '#2f6f8f', dashed = false, overdu
 
 function makeTaskSheet({ text, overdue }, index) {
   const group = new THREE.Group();
-  const sheet = makeSheet({ w: 0.3, h: 0.12, color: overdue ? '#fdeae7' : '#ffffff' });
+  const sheet = makeSheet({ w: 0.3, h: 0.12, color: overdue ? '#fdeae7' : '#fdfbf4' });
   group.add(sheet);
   const trimmed = text.length > 34 ? `${text.slice(0, 34)}…` : text;
   const label = new THREE.Mesh(
@@ -90,7 +155,7 @@ function makeTaskSheet({ text, overdue }, index) {
   label.rotation.x = -Math.PI / 2;
   label.position.y = 0.002;
   group.add(label);
-  group.position.set(-0.27 + (index % 3) * 0.27, 0.766, 0.5 + Math.floor(index / 3) * 0.13);
+  group.position.set(-0.34 + (index % 3) * 0.34, 0.766, 0.5 + Math.floor(index / 3) * 0.15);
   group.rotation.y = (Math.random() - 0.5) * 0.05;
   return group;
 }
@@ -122,17 +187,24 @@ export function createScene({ canvas, state, onZoneClick, config = {} }) {
   // Tier 0 lighting: warm key from the window + cool fill from the room.
   const hemi = new THREE.HemisphereLight(0xfff1dc, 0x5a4b3c, theme === 'oceanview' ? 0.55 : 1.0);
   scene.add(hemi);
+  // Faint room ambient so the dark walls read as walls, not void.
+  const ambient = new THREE.AmbientLight(0x55606c, theme === 'oceanview' ? 0.35 : 0.0);
+  scene.add(ambient);
   const sun = new THREE.DirectionalLight(0xffd9a8, theme === 'oceanview' ? 2.2 : 1.0);
   sun.position.set(-1.2, 2.4, -0.9);
   scene.add(sun);
   const fill = new THREE.DirectionalLight(0xbfd4e8, theme === 'oceanview' ? 0.35 : 0.0);
   fill.position.set(0.8, 1.4, 2.2);
   scene.add(fill);
+  // Cool rim grazing across the desk (edge highlights on the paper piles).
+  const rim = new THREE.DirectionalLight(0x9fc4e8, theme === 'oceanview' ? 0.5 : 0.0);
+  rim.position.set(-2.0, 0.9, 0.6);
+  scene.add(rim);
 
   // Desk surface.
   const desk = new THREE.Mesh(
     new THREE.BoxGeometry(DESK.w, DESK.h, DESK.d),
-    new THREE.MeshStandardMaterial({ color: 0x8f6a44, roughness: 0.7 }),
+    new THREE.MeshStandardMaterial({ color: 0xffffff, map: woodTexture(), roughness: 0.72 }),
   );
   desk.position.set(0, DESK.y, DESK.z);
   scene.add(desk);
@@ -168,7 +240,7 @@ export function createScene({ canvas, state, onZoneClick, config = {} }) {
     sill.position.set(0, 0.95, -0.55);
     environment.add(sill);
     // Wall around the window (references: warm room, window pops).
-    const wallMat = new THREE.MeshStandardMaterial({ color: 0x3e4a57, roughness: 0.95 });
+    const wallMat = new THREE.MeshStandardMaterial({ color: 0x4a5866, roughness: 0.95 });
     const wallDefs = [
       [2.4, 0.82, 0, 2.34, -0.7], // above
       [0.95, 2.2, -1.18, 1.3, -0.7], // left
@@ -183,19 +255,19 @@ export function createScene({ canvas, state, onZoneClick, config = {} }) {
     // Sill trinkets: a small plant and books (POV reference).
     const pot = new THREE.Mesh(
       new THREE.CylinderGeometry(0.035, 0.028, 0.06, 16),
-      new THREE.MeshStandardMaterial({ color: 0xb5643c, roughness: 0.8 }),
+      toon(0xb5643c),
     );
     pot.position.set(-0.55, 1.0, -0.55);
     environment.add(pot);
     const leaves = new THREE.Mesh(
       new THREE.SphereGeometry(0.055, 16, 12),
-      new THREE.MeshStandardMaterial({ color: 0x4f7a4a, roughness: 0.9 }),
+      toon(0x4f7a4a),
     );
     leaves.position.set(-0.55, 1.07, -0.55);
     environment.add(leaves);
     const book1 = new THREE.Mesh(
       new THREE.BoxGeometry(0.1, 0.02, 0.07),
-      new THREE.MeshStandardMaterial({ color: 0x8a4b3a, roughness: 0.85 }),
+      toon(0x8a4b3a),
     );
     book1.position.set(0.5, 0.97, -0.55);
     environment.add(book1);
@@ -203,10 +275,17 @@ export function createScene({ canvas, state, onZoneClick, config = {} }) {
     book2.position.y = 0.995;
     book2.rotation.y = 0.2;
     environment.add(book2);
+    for (const prop of [pot, book1, book2]) {
+      const ink = new THREE.Mesh(prop.geometry, OUTLINE_MAT);
+      ink.position.copy(prop.position);
+      ink.rotation.copy(prop.rotation);
+      ink.scale.setScalar(1.08);
+      environment.add(ink);
+    }
     // Pen cup on the desk, left side (POV reference composition).
     const cup = new THREE.Mesh(
       new THREE.CylinderGeometry(0.03, 0.026, 0.06, 18),
-      new THREE.MeshStandardMaterial({ color: 0xd9d2c4, roughness: 0.7 }),
+      toon(0xd9d2c4),
     );
     cup.position.set(-0.58, 0.79, 0.1);
     environment.add(cup);
@@ -214,7 +293,7 @@ export function createScene({ canvas, state, onZoneClick, config = {} }) {
     penColors.forEach((color, i) => {
       const pen = new THREE.Mesh(
         new THREE.CylinderGeometry(0.004, 0.004, 0.11, 8),
-        new THREE.MeshStandardMaterial({ color, roughness: 0.6 }),
+        toon(color),
       );
       pen.position.set(-0.58 + (i - 1.5) * 0.012, 0.85, 0.1 + (i % 2) * 0.01);
       pen.rotation.z = (i - 1.5) * 0.08;
