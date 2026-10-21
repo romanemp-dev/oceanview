@@ -22,6 +22,12 @@ In progress
 
 Nothing yet.
 
+Tier 2 shipped (2026-10-22): post-processing (UnrealBloom + film grain via
+EffectComposer/OutputPass, half-res bloom on mobile), the user's new 2528×1664
+panorama integrated, warm sunlit room palette per the user's reference (light
+walls, honey wood, ambient warmth, additive sun pool on the desk), ink labels
+bypass tone mapping for readability. Mobile: bloom/grain reduced, DPR 1.5.
+
 Tier 1 shipped (2026-10-21): anime shading — MeshToonMaterial with a 3-step
 gradient ramp for paper piles and props, ink edges around piles (EdgesGeometry,
 not fat hulls), inverted-hull outlines for the sill props, cool rim light,

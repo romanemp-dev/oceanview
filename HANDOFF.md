@@ -1,6 +1,6 @@
 # Oceanview — project handoff for AI assistants
 
-_Last updated: 2026-10-21 (v1.0 scope; Tier 0 + Tier 1 shipped)._
+_Last updated: 2026-10-22 (Tier 2 shipped: post-processing + new panorama + warm room)._
 
 > Give this file (plus `AGENTS.md` and the `docs/` set) to any AI coding agent.
 > Read order: this file → `AGENTS.md` → `docs/product.md` → `docs/spec.md` →
@@ -28,9 +28,10 @@ dependencies (Three.js is vendored for the visual layer).
 - **R-17 (final visual theme): planned** — requirements in
   `docs/visual-spec.md`; v1.0 visual scope: ONE background / single time of day, near-ideal on
 desktop + mobile; time-of-day states and WebXR are post-v1.0 (D-023).
-Tier 0 (ACES, cinematic light, vignette) and Tier 1 (toon shading, ink edges,
-rim light, procedural wood) are shipped; next: Tier 2 with the final
-single panorama (prompt template in docs/pano-prompt.md).
+Tier 0 (ACES, cinematic light, vignette), Tier 1 (toon shading, ink edges,
+rim light, procedural wood) and Tier 2 (bloom + film grain post stack,
+2528×1664 user panorama, warm sunlit room palette) are shipped. Next: mobile
+QA pass, then R-17 acceptance on three camera poses (window/rest/desk).
 Wave 7 steps 1–5 shipped (Three.js scene foundation + M-rig camera demo;
   camera framing per user feedback; A0 panorama from the user reference with
   cover-fit; POV props; v1 animations; QA pass with realistic scale and three

@@ -58,6 +58,9 @@
       window.addEventListener('unhandledrejection', (e) => show(String(e.reason?.stack || e.reason || 'unhandled rejection')));
     })();
   </script>
+  <script type="importmap">
+    { "imports": { "three": "./vendor/three/three.module.js" } }
+  </script>
   <script type="module" src="src/main.js"></script>
 </body>
 </html>
