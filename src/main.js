@@ -443,7 +443,9 @@ function visualMode() {
 }
 
 function updateSceneButton() {
-  els.scene.textContent = `Scene: ${visualMode()}`;
+  const mode = visualMode();
+  els.scene.textContent = window.innerWidth < 700 ? 'Scene' : `Scene: ${mode}`;
+  els.scene.title = `Scene preset: ${mode}`;
 }
 
 els.scene.addEventListener('click', () => {

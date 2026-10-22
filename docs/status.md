@@ -22,6 +22,12 @@ In progress
 
 Nothing yet.
 
+Polish pass (2026-10-22, user art direction): window + sill moved flush to the
+desk and lowered so the window sits right above it; room lightened further
+(walls 0xd8cab2, ambient 0.42, exposure 1.09); labels softened to dark brown
+at the same weight; sun pool unchanged. Mobile topbar wraps and shortens
+labels at ≤700px. Verified on desktop 1440×900 and portrait 420×900.
+
 Tier 2 shipped (2026-10-22): post-processing (UnrealBloom + film grain via
 EffectComposer/OutputPass, half-res bloom on mobile), the user's new 2528×1664
 panorama integrated, warm sunlit room palette per the user's reference (light

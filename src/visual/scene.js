@@ -12,7 +12,7 @@ import { OutputPass } from '../../vendor/three/examples/jsm/postprocessing/Outpu
 // --- Layout constants (metres) ------------------------------------------
 const DESK = { w: 1.4, h: 0.08, d: 1.12, y: 0.72, z: 0.28 }; // top = 0.76
 const CAMERA = { x: 0, y: 1.18, z: 0.95 };
-const WINDOW = { w: 1.4, h: 0.96, cy: 1.45, z: -0.62 };
+const WINDOW = { w: 1.4, h: 0.96, cy: 1.32, z: -0.40 };
 const STACK_RADIUS = 0.8;
 const STACK_ANGLES = Math.PI / 6; // ±30°
 
@@ -129,7 +129,7 @@ function makeStackMesh({ name, count, accent = '#2f6f8f', dashed = false, overdu
   // Flat label lying on the pile (readable when looking down at the desk).
   const label = new THREE.Mesh(
     new THREE.PlaneGeometry(0.12, 0.038),
-    new THREE.MeshBasicMaterial({ map: labelTexture(`${name} · ${count}`, { width: 512, height: 128, bg: 'rgba(255,250,240,1)', color: '#241c12', font: '700 54px -apple-system, sans-serif' }), transparent: true, toneMapped: false }),
+    new THREE.MeshBasicMaterial({ map: labelTexture(`${name} · ${count}`, { width: 512, height: 128, bg: 'rgba(255,250,240,1)', color: '#3a2a1c', font: '700 54px -apple-system, sans-serif' }), transparent: true, toneMapped: false }),
   );
   label.rotation.x = -Math.PI / 2 + 0.16; // slight lean toward the viewer
   label.position.set(0, topY + 0.012, 0.07);
@@ -155,7 +155,7 @@ function makeTaskSheet({ text, overdue }, index) {
   const trimmed = text.length > 34 ? `${text.slice(0, 34)}…` : text;
   const label = new THREE.Mesh(
     new THREE.PlaneGeometry(0.27, 0.09),
-    new THREE.MeshBasicMaterial({ map: labelTexture(trimmed, { width: 512, height: 128, bg: 'rgba(255,252,246,1)', color: '#241c12', font: '600 34px -apple-system, sans-serif' }), toneMapped: false }),
+    new THREE.MeshBasicMaterial({ map: labelTexture(trimmed, { width: 512, height: 128, bg: 'rgba(255,252,246,1)', color: '#3a2a1c', font: '600 34px -apple-system, sans-serif' }), toneMapped: false }),
   );
   label.rotation.x = -Math.PI / 2;
   label.position.y = 0.002;
@@ -176,7 +176,7 @@ export function createScene({ canvas, state, onZoneClick, config = {} }) {
   renderer.shadowMap.enabled = false;
   // Tier 0: filmic tone mapping — kills the flat "plastic" look.
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = theme === 'oceanview' ? 1.04 : 1.0;
+  renderer.toneMappingExposure = theme === 'oceanview' ? 1.09 : 1.0;
   renderer.outputColorSpace = THREE.SRGBColorSpace;
 
   const scene = new THREE.Scene();
@@ -221,10 +221,10 @@ export function createScene({ canvas, state, onZoneClick, config = {} }) {
 
   // Lights: warm window light (references: sunlit anime desk).
   // Tier 0 lighting: warm key from the window + cool fill from the room.
-  const hemi = new THREE.HemisphereLight(0xfff4e4, 0x8a7358, theme === 'oceanview' ? 0.8 : 1.0);
+  const hemi = new THREE.HemisphereLight(0xfff6ea, 0x9a8568, theme === 'oceanview' ? 0.92 : 1.0);
   scene.add(hemi);
   // Faint room ambient so the dark walls read as walls, not void.
-  const ambient = new THREE.AmbientLight(0xfff0d8, theme === 'oceanview' ? 0.32 : 0.0);
+  const ambient = new THREE.AmbientLight(0xfff2dd, theme === 'oceanview' ? 0.42 : 0.0);
   scene.add(ambient);
   const sun = new THREE.DirectionalLight(0xffd9a8, theme === 'oceanview' ? 2.0 : 1.0);
   sun.position.set(-1.2, 2.4, -0.9);
@@ -273,15 +273,15 @@ export function createScene({ canvas, state, onZoneClick, config = {} }) {
       new THREE.BoxGeometry(WINDOW.w + 0.04, 0.04, 0.12),
       new THREE.MeshStandardMaterial({ color: 0x9c7a52, roughness: 0.6 }),
     );
-    sill.position.set(0, 0.95, -0.55);
+    sill.position.set(0, 0.83, -0.34); // front edge flush with the desk (z = -0.28)
     environment.add(sill);
     // Wall around the window (references: warm room, window pops).
-    const wallMat = new THREE.MeshStandardMaterial({ color: 0xc9b89c, roughness: 0.95 });
+    const wallMat = new THREE.MeshStandardMaterial({ color: 0xd8cab2, roughness: 0.95 });
     const wallDefs = [
-      [2.4, 0.82, 0, 2.34, -0.7], // above
-      [0.95, 2.2, -1.18, 1.3, -0.7], // left
-      [0.95, 2.2, 1.18, 1.3, -0.7], // right
-      [2.4, 0.97, 0, 0.485, -0.7], // below
+      [2.4, 0.8, 0, 2.2, -0.48], // above
+      [0.95, 2.2, -1.18, 1.2, -0.48], // left
+      [0.95, 2.2, 1.18, 1.2, -0.48], // right
+      [2.4, 0.84, 0, 0.42, -0.48], // below
     ];
     for (const [w, h, x, y, z] of wallDefs) {
       const wall = new THREE.Mesh(new THREE.PlaneGeometry(w, h), wallMat);
@@ -293,22 +293,22 @@ export function createScene({ canvas, state, onZoneClick, config = {} }) {
       new THREE.CylinderGeometry(0.035, 0.028, 0.06, 16),
       toon(0xb5643c),
     );
-    pot.position.set(-0.55, 1.0, -0.55);
+    pot.position.set(-0.55, 0.88, -0.55);
     environment.add(pot);
     const leaves = new THREE.Mesh(
       new THREE.SphereGeometry(0.055, 16, 12),
       toon(0x4f7a4a),
     );
-    leaves.position.set(-0.55, 1.07, -0.55);
+    leaves.position.set(-0.55, 0.95, -0.55);
     environment.add(leaves);
     const book1 = new THREE.Mesh(
       new THREE.BoxGeometry(0.1, 0.02, 0.07),
       toon(0x8a4b3a),
     );
-    book1.position.set(0.5, 0.97, -0.55);
+    book1.position.set(0.5, 0.86, -0.55);
     environment.add(book1);
     const book2 = book1.clone();
-    book2.position.y = 0.995;
+    book2.position.y = 0.885;
     book2.rotation.y = 0.2;
     environment.add(book2);
     for (const prop of [pot, book1, book2]) {
