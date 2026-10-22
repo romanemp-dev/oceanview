@@ -22,6 +22,10 @@ In progress
 
 Nothing yet.
 
+Dev server switched to server.py (python3, no-store, LAN-ready) — the macOS
+application firewall silently blocked incoming connections to Node, so phones
+could not reach the app; python3 is already firewall-allowed. serve.sh updated.
+
 Polish pass (2026-10-22, user art direction): window + sill moved flush to the
 desk and lowered so the window sits right above it; room lightened further
 (walls 0xd8cab2, ambient 0.42, exposure 1.09); labels softened to dark brown

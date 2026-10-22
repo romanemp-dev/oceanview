@@ -1,6 +1,6 @@
 # Oceanview — project handoff for AI assistants
 
-_Last updated: 2026-10-22 (Tier 2 shipped: post-processing + new panorama + warm room)._
+_Last updated: 2026-10-22 (Tier 2 shipped; LAN-ready no-store server)._
 
 > Give this file (plus `AGENTS.md` and the `docs/` set) to any AI coding agent.
 > Read order: this file → `AGENTS.md` → `docs/product.md` → `docs/spec.md` →
