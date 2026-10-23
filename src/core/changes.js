@@ -10,8 +10,23 @@ import { INBOX, STACKS_DIR } from './workspace.js';
 export const INDEX_PATH = '.desk/index.json';
 
 export async function sha256Hex(text) {
-  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(String(text)));
-  return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, '0')).join('');
+  const bytes = new TextEncoder().encode(String(text));
+  // Secure contexts (https/localhost) have WebCrypto; plain-LAN http does not.
+  if (globalThis.crypto?.subtle) {
+    const buf = await crypto.subtle.digest('SHA-256', bytes);
+    return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, '0')).join('');
+  }
+  // Fallback for non-secure origins: two 64-bit FNV-1a rounds (16 hex chars).
+  // Collision risk is negligible for change detection at workspace scale.
+  const PRIME = 0x100000001b3n;
+  const MASK = 0xffffffffffffffffn;
+  let h1 = 0xcbf29ce484222325n;
+  let h2 = 0x84222325cbf29ce4n;
+  for (const b of bytes) {
+    h1 = ((h1 ^ BigInt(b)) * PRIME) & MASK;
+    h2 = ((h2 ^ BigInt(b + 1)) * PRIME) & MASK;
+  }
+  return h1.toString(16).padStart(16, '0') + h2.toString(16).padStart(16, '0');
 }
 
 function isTrackedPath(path) {

@@ -555,9 +555,19 @@ export function createScene({ canvas, state, onZoneClick, config = {} }) {
   }
 
   // Picking (stack click → navigation; blank sheet → capture).
+  // Tap-vs-swipe guard: only treat as a tap when the pointer barely moved
+  // between down and up — otherwise a camera swipe on a stack would open it.
   const raycaster = new THREE.Raycaster();
   const pointer = new THREE.Vector2();
+  let downPos = null;
   function onPointerDown(e) {
+    downPos = { x: e.clientX, y: e.clientY };
+  }
+  function onPointerUp(e) {
+    if (!downPos) return;
+    const moved = Math.hypot(e.clientX - downPos.x, e.clientY - downPos.y);
+    downPos = null;
+    if (moved > 8) return; // it was a camera swipe, not a tap
     const rect = canvas.getBoundingClientRect();
     pointer.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
     pointer.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
@@ -571,6 +581,7 @@ export function createScene({ canvas, state, onZoneClick, config = {} }) {
     else if (obj.userData?.entry?.path) onZoneClick?.('stack', obj.userData.entry);
   }
   canvas.addEventListener('pointerdown', onPointerDown);
+  canvas.addEventListener('pointerup', onPointerUp);
 
   let running = true;
   let frameCount = 0;

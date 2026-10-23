@@ -28,11 +28,33 @@ export function createCameraRig({ camera, domElement, config = {} }) {
   const euler = new (camera.rotation.constructor)(0, 0, 0, 'YXZ');
 
   function onMouseMove(e) {
-    if (!state.enabled) return;
+    if (!state.enabled || e.pointerType === 'touch') return;
     const rect = domElement.getBoundingClientRect();
     const nx = ((e.clientX - rect.left) / rect.width) * 2 - 1; // -1..1
     const ny = ((e.clientY - rect.top) / rect.height) * 2 - 1; // -1..1
     applyInput(nx, ny);
+  }
+
+  // Touch: relative swipe follows the finger (swipe right → look right).
+  let touchLast = null;
+  const clamp = (v, lo, hi) => Math.min(Math.max(v, lo), hi);
+  function onTouchStart(e) {
+    if (e.pointerType !== 'touch') return;
+    touchLast = { x: e.clientX, y: e.clientY };
+    state.drifting = false;
+  }
+  function onTouchMove(e) {
+    if (!state.enabled || e.pointerType !== 'touch' || !touchLast) return;
+    const rect = domElement.getBoundingClientRect();
+    const dx = (e.clientX - touchLast.x) / rect.width;
+    const dy = (e.clientY - touchLast.y) / rect.height;
+    touchLast = { x: e.clientX, y: e.clientY };
+    state.targetYaw = clamp(state.targetYaw - dx * cfg.yawRange * 2.4, -cfg.yawRange, cfg.yawRange);
+    state.targetPitch = clamp(state.targetPitch - dy * (cfg.pitchUp - cfg.pitchRest) * 1.8, cfg.pitchDown, cfg.pitchUp);
+    state.drifting = false;
+  }
+  function onTouchEnd() {
+    touchLast = null;
   }
 
   function applyInput(nx, ny) {
@@ -73,11 +95,19 @@ export function createCameraRig({ camera, domElement, config = {} }) {
 
   function attach() {
     domElement.addEventListener('mousemove', onMouseMove);
+    domElement.addEventListener('pointerdown', onTouchStart);
+    domElement.addEventListener('pointermove', onTouchMove);
+    domElement.addEventListener('pointerup', onTouchEnd);
+    domElement.addEventListener('pointercancel', onTouchEnd);
     startDrift();
   }
 
   function detach() {
     domElement.removeEventListener('mousemove', onMouseMove);
+    domElement.removeEventListener('pointerdown', onTouchStart);
+    domElement.removeEventListener('pointermove', onTouchMove);
+    domElement.removeEventListener('pointerup', onTouchEnd);
+    domElement.removeEventListener('pointercancel', onTouchEnd);
   }
 
   return { tick, attach, detach, startDrift, state };
