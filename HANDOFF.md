@@ -23,6 +23,10 @@ _Last updated: 2026-10-22 (Tier 2 shipped; LAN-ready no-store server)._
   right), cluster layout + stack drag&drop persisted to config
   (setStackPos), SW v9. Commit a68f139.
 
+### 2026-10-27 (late night)
+- Round 3: drag pick fix (sprites excluded), thin curled sheets, snap grid,
+  note drag + confirm-to-file, matte rectangular bubbles, SW v11 (30f7f07).
+
 ## 1. What this project is
 
 Oceanview is a **local-first personal desk web app**. Its database is a normal

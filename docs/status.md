@@ -3,6 +3,10 @@ Status
 Phase: 1 — implementation (spec v1.0 frozen)
 
 Done
+- Round 3 fixes (30f7f07): sprite-filtered drag pick (root cause of
+  single-stack grabbing), 3x thinner sheets + corner curl wedge, 7cm snap
+  grid with overlap guard, note drag with confirm-to-file, matte glass
+  rectangle bubbles (lost-label bug fixed), SW v11.
 - R-17 round 2 per user references (a68f139): glass speech-bubbles with
   per-frame morphing expansion (icon rides the left edge, label fades in),
   cluster layout with deterministic jitter, stack drag&drop persisted to
