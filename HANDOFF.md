@@ -7,6 +7,13 @@ _Last updated: 2026-10-22 (Tier 2 shipped; LAN-ready no-store server)._
 > `docs/architecture.md` → `docs/decisions.md` → `docs/status.md` →
 > `docs/visual-spec.md` (for visual work) → `docs/plan.md`.
 
+### 2026-10-26 (session 3)
+- D-024 shelves shipped: side boards by the window, `shelf: true` in
+  .desk/config.json; readDesk() returns config now (root cause of lost flags).
+- LAN fixes: sha256 fallback (non-secure origin), touch swipe camera,
+  tap-vs-swipe guard, touch-action none. Dust 90/36 clear of camera, light
+  shaft 0.26. SW v7. Commits 52118af, 39b1412, 4e2e9a2. 54/54 tests.
+
 ## 1. What this project is
 
 Oceanview is a **local-first personal desk web app**. Its database is a normal
