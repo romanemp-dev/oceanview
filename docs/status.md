@@ -3,6 +3,10 @@ Status
 Phase: 1 — implementation (spec v1.0 frozen)
 
 Done
+- R-17 round 2 per user references (a68f139): glass speech-bubbles with
+  per-frame morphing expansion (icon rides the left edge, label fades in),
+  cluster layout with deterministic jitter, stack drag&drop persisted to
+  config.stacks[path].pos (camera rig idles during drag), SW v9.
 - R-17 stack/note redesign per user art direction (748101a): chaotic A5
   piles (4..10 sheets, height follows item count) with recent titles on the
   top sheet, flat A6 notes, hover-expanding name bubbles, lower shelves;

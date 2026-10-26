@@ -18,6 +18,11 @@ _Last updated: 2026-10-22 (Tier 2 shipped; LAN-ready no-store server)._
 - Stack/note redesign: chaotic A5 piles with titled top sheet, flat A6 notes,
   hover bubbles (expand + name), shelves lowered. Commit 748101a, SW v8.
 
+### 2026-10-27 (night session)
+- Glass bubbles with morphing expand (icon rides left edge, label fades in
+  right), cluster layout + stack drag&drop persisted to config
+  (setStackPos), SW v9. Commit a68f139.
+
 ## 1. What this project is
 
 Oceanview is a **local-first personal desk web app**. Its database is a normal
