@@ -245,6 +245,14 @@ export function createWorkspaceModel(adapter, hooks = null) {
       await adapter.deleteDir(`${DESK_DIR}/trash/${dirName}`);
     },
 
+    async setStackPos(name, pos) {
+      const config = await readConfig();
+      config.stacks = config.stacks ?? {};
+      config.stacks[name] = config.stacks[name] ?? {};
+      config.stacks[name].pos = { x: Number(pos.x.toFixed(3)), z: Number(pos.z.toFixed(3)) };
+      await writeConfig(config);
+    },
+
     async setStackAgents(name, agents) {
       const config = await readConfig();
       config.stacks = config.stacks ?? {};

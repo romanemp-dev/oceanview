@@ -14,7 +14,7 @@ import { scanItemFiles, loadIndex, saveIndex, buildBaselineFromScan, diffAgainst
 // PWA (R-18): register the offline shell service worker.
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('sw.js?v=7', { updateViaCache: 'none' }).catch((err) => console.warn('SW registration failed:', err));
+    navigator.serviceWorker.register('sw.js?v=8', { updateViaCache: 'none' }).catch((err) => console.warn('SW registration failed:', err));
   });
 }
 
@@ -656,6 +656,13 @@ async function openWorkspace(nextAdapter, label) {
     scene = mountVisualScene({
       canvas,
       onCaptureClick: () => document.querySelector('.capture-fab')?.click(),
+      onStackMove: (stackPath, pos) => {
+        if (!ws?.setStackPos) return;
+        const day = new Date().toISOString().slice(0, 10);
+        const line = JSON.stringify({ ts: Date.now(), agent: 'user', kind: 'stack-move', files: [`${stackPath}/`], detail: { pos } });
+        ws.writeItem(`.desk/activity`, `${day}.log`, { type: 'activity' }, line).catch(() => {});
+        ws.setStackPos(stackPath, pos).catch((err) => console.warn('stack move failed:', err));
+      },
       onFail: () => {
         // Scene could not render (GPU/rAF issue) — fall back to the DOM desk.
         console.warn('Scene failed to render; falling back to the DOM desk');

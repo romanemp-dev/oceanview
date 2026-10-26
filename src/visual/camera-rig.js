@@ -29,6 +29,7 @@ export function createCameraRig({ camera, domElement, config = {} }) {
 
   function onMouseMove(e) {
     if (!state.enabled || e.pointerType === 'touch') return;
+    if (domElement.dataset.dragging === '1') return;
     const rect = domElement.getBoundingClientRect();
     const nx = ((e.clientX - rect.left) / rect.width) * 2 - 1; // -1..1
     const ny = ((e.clientY - rect.top) / rect.height) * 2 - 1; // -1..1

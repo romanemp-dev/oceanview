@@ -102,92 +102,145 @@ function makeSheet({ w = 0.24, h = 0.31, color = '#fdfdf8' } = {}) {
 
 const A5 = { w: 0.148, d: 0.21, t: 0.011 };
 
+// Deterministic PRNG (mulberry32) seeded from a string — piles keep their
+// chaotic look across refreshes instead of re-shuffling every update.
+function seededRandom(seedStr) {
+  let h = 2166136261;
+  for (let i = 0; i < seedStr.length; i++) {
+    h ^= seedStr.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return function () {
+    h += 0x6d2b79f5;
+    let t = h;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
 // Thin white outline icons (24x24 viewBox paths), transparent fill.
+// Thin white outline icons, 24x24 stroke paths (rounded joins).
 const ICONS = {
-  doc: 'M7 3h7l4 4v14H7z M14 3v4h4 M9.5 12h5 M9.5 15h5',
-  inbox: 'M4 13l2-7h12l2 7v6H4z M4 13h5a3 3 0 0 0 6 0h5',
-  star: 'M12 3l2.7 5.8 6.3.8-4.6 4.4 1.2 6.2L12 17.2 6.4 20.2l1.2-6.2L3 9.6l6.3-.8z',
-  pen: 'M4 20l1-4L16.5 4.5a2.1 2.1 0 0 1 3 3L8 19z M14 7l3 3',
+  doc: 'M7 3h7l4 4v14H7z M14 3v4h4 M9.5 12h5 M9.5 15.5h5',
+  inbox: 'M4 13l2.2-7h11.6L20 13v6H4z M4 13h4.6a3.4 3.4 0 0 0 6.8 0H20',
+  star: 'M12 3.2l2.6 5.5 6 .8-4.4 4.2 1.1 6L12 16.8 6.7 19.7l1.1-6L3.4 9.5l6-.8z',
+  pen: 'M4.5 19.5l.9-3.6L16.6 4.7a2 2 0 0 1 2.8 2.8L8.2 18.6z M13.8 7.5l2.8 2.8',
+  book: 'M5 4h6a2 2 0 0 1 2 2v14a2 2 0 0 0-2-2H5z M19 4h-6a2 2 0 0 0-2 2v14a2 2 0 0 1 2-2h6z',
 };
 
-function iconTexture(name, label = '', { expand = false } = {}) {
-  const W = expand ? 760 : 320;
-  const H = 320;
-  const canvas = document.createElement('canvas');
-  canvas.width = W;
-  canvas.height = H;
-  const ctx = canvas.getContext('2d');
-  // Frosted capsule: soft white fill + thin outline, keeps icons readable
-  // against the bright window or dark shelves.
-  const r = H / 2 - 14;
-  ctx.beginPath();
-  const bw = W - 28;
-  ctx.roundRect(14, 14, bw, H - 28, r);
-  ctx.fillStyle = 'rgba(255, 253, 247, 0.16)';
-  ctx.fill();
-  ctx.strokeStyle = 'rgba(255, 255, 255, 0.55)';
-  ctx.lineWidth = 2;
-  ctx.stroke();
+const BUBBLE = { H: 256, pad: 36, icon: 132, gap: 24, font: 52 };
+
+function drawIcon(ctx, name, x, y, size) {
   const path = new Path2D(ICONS[name] ?? ICONS.doc);
   ctx.save();
-  ctx.translate(0, 0);
-  ctx.scale(H / 24, H / 24);
-  ctx.strokeStyle = 'rgba(255,255,255,0.98)';
-  ctx.lineWidth = 1.1;
+  ctx.translate(x, y);
+  ctx.scale(size / 24, size / 24);
+  ctx.strokeStyle = 'rgba(255,255,255,0.97)';
+  ctx.lineWidth = 1.35;
   ctx.lineJoin = 'round';
   ctx.lineCap = 'round';
   ctx.stroke(path);
   ctx.restore();
-  if (expand && label) {
-    ctx.fillStyle = 'rgba(255,255,255,0.96)';
-    ctx.font = '300 62px -apple-system, sans-serif';
+}
+
+function drawBubbleFrame(ctx, W, icon, label, textAlpha) {
+  const H = BUBBLE.H;
+  ctx.clearRect(0, 0, W, H);
+  // Glass body: soft vertical gradient + thin bright outline.
+  const r = H / 2 - 12;
+  ctx.beginPath();
+  ctx.roundRect(10, 10, W - 20, H - 20, r);
+  const g = ctx.createLinearGradient(0, 0, 0, H);
+  g.addColorStop(0, 'rgba(255,255,255,0.30)');
+  g.addColorStop(0.55, 'rgba(255,255,255,0.13)');
+  g.addColorStop(1, 'rgba(250,247,240,0.24)');
+  ctx.fillStyle = g;
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(255,255,255,0.85)';
+  ctx.lineWidth = 3;
+  ctx.stroke();
+  // Corner glints (glass sparkle like the reference).
+  ctx.save();
+  ctx.shadowColor = 'rgba(255,255,255,0.95)';
+  ctx.shadowBlur = 14;
+  ctx.strokeStyle = 'rgba(255,255,255,0.9)';
+  ctx.lineWidth = 4;
+  const gl = [[46, 40, 30, -14], [W - 52, 40, -26, -12], [40, H - 42, 26, 14], [W - 46, H - 44, -30, 12]];
+  for (const [gx, gy, dx, dy] of gl) {
+    ctx.beginPath();
+    ctx.moveTo(gx, gy);
+    ctx.lineTo(gx + dx, gy + dy);
+    ctx.stroke();
+  }
+  ctx.restore();
+  // Icon sits at a fixed offset from the LEFT edge (moves with it).
+  drawIcon(ctx, icon, BUBBLE.pad, H / 2 - BUBBLE.icon / 2, BUBBLE.icon);
+  // Label fades in to the right of the icon.
+  if (label && textAlpha > 0.01) {
+    ctx.save();
+    ctx.globalAlpha = textAlpha;
+    ctx.fillStyle = 'rgba(255,255,255,0.97)';
+    ctx.font = `300 ${BUBBLE.font}px -apple-system, sans-serif`;
     ctx.textAlign = 'left';
     ctx.textBaseline = 'middle';
-    // Dark soft shadow behind the text for contrast on glass.
-    ctx.save();
-    ctx.shadowColor = 'rgba(40, 30, 18, 0.55)';
-    ctx.shadowBlur = 12;
-    ctx.fillText(label, 220, H / 2, W - 250);
+    ctx.shadowColor = 'rgba(40, 30, 18, 0.6)';
+    ctx.shadowBlur = 10;
+    ctx.fillText(label, BUBBLE.pad + BUBBLE.icon + BUBBLE.gap, H / 2 + 2, W - (BUBBLE.pad + BUBBLE.icon + BUBBLE.gap) - BUBBLE.pad);
     ctx.restore();
   }
-  const tex = new THREE.CanvasTexture(canvas);
-  tex.colorSpace = THREE.SRGBColorSpace;
-  return tex;
 }
 
 function makeBubble({ name, icon = 'doc' }) {
+  const canvas = document.createElement('canvas');
+  canvas.width = 300;
+  canvas.height = BUBBLE.H;
+  const ctx = canvas.getContext('2d');
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.colorSpace = THREE.SRGBColorSpace;
   const mat = new THREE.SpriteMaterial({
-    map: iconTexture(icon),
+    map: tex,
     transparent: true,
-    opacity: 0.85,
+    opacity: 0.92,
     depthWrite: false,
     depthTest: false,
     toneMapped: false,
   });
   const sprite = new THREE.Sprite(mat);
-  sprite.scale.set(0.075, 0.075, 1);
-  sprite.renderOrder = 20;
+  const WORLD_H = 0.085;
+  const label = name.length > 18 ? `${name.slice(0, 17)}…` : name;
+  ctx.font = `300 ${BUBBLE.font}px -apple-system, sans-serif`;
+  const textW = ctx.measureText(label).width;
+  const W0 = BUBBLE.pad * 2 + BUBBLE.icon;
+  const W1 = Math.min(880, W0 + BUBBLE.gap + textW);
+  let shownW = W0;
+  let anim = null; // {from, to, fromA, toA, start, dur}
+  drawBubbleFrame(ctx, W0, icon, '', 0);
+  tex.needsUpdate = true;
+
+  function apply(w, alpha) {
+    shownW = w;
+    canvas.width = Math.round(w); // resets ctx state
+    drawBubbleFrame(ctx, w, icon, alpha > 0.01 ? label : '', alpha);
+    tex.needsUpdate = true;
+    sprite.scale.set(WORLD_H * (w / BUBBLE.H), WORLD_H, 1);
+  }
+  apply(W0, 0);
   sprite.userData = {
     name,
-    base: 0.075,
     expanded: false,
     setExpanded(on) {
       if (sprite.userData.expanded === on) return;
       sprite.userData.expanded = on;
-      mat.opacity = on ? 1 : 0.8;
-      mat.map = iconTexture(icon, on ? name : '', { expand: on });
-      const target = on ? 0.075 + (name.length * 0.011 + 0.04) : 0.075;
-      sprite.userData.targetScale = target;
-      sprite.userData.anim = performance.now();
+      mat.opacity = on ? 1 : 0.92;
+      anim = { from: shownW, to: on ? W1 : W0, fromA: on ? 0 : 1, toA: on ? 1 : 0, start: performance.now(), dur: 240 };
     },
     tick(now) {
-      const t = sprite.userData.targetScale ?? sprite.userData.base;
-      const cur = sprite.scale.x;
-      const next = cur + (t - cur) * Math.min(1, (now - (sprite.userData.anim ?? now)) / 160 + 0.12);
-      if (Math.abs(next - cur) > 0.0001) {
-        sprite.scale.set(next, next * (sprite.userData.base / sprite.userData.base), 1);
-        sprite.scale.y = next;
-      }
+      if (!anim) return;
+      const t = Math.min((now - anim.start) / anim.dur, 1);
+      const e = 1 - Math.pow(1 - t, 3);
+      apply(anim.from + (anim.to - anim.from) * e, anim.fromA + (anim.toA - anim.fromA) * e);
+      if (t >= 1) anim = null;
     },
   };
   return sprite;
@@ -213,7 +266,7 @@ function sheetTopTexture(titles, overdue) {
     ctx.stroke();
   }
   // Recent note titles — small, thin, same family as the A6 notes.
-  ctx.font = '300 60px -apple-system, sans-serif';
+  ctx.font = '400 72px -apple-system, sans-serif';
   ctx.textAlign = 'left';
   ctx.textBaseline = 'middle';
   const lines = titles.slice(0, 3);
@@ -225,7 +278,7 @@ function sheetTopTexture(titles, overdue) {
     ctx.beginPath();
     ctx.arc(96, y, 11, 0, Math.PI * 2);
     ctx.fill();
-    ctx.fillStyle = overdue && i === 0 ? '#8f2f22' : '#3f3526';
+    ctx.fillStyle = overdue && i === 0 ? '#8f2f22' : '#332a1d';
     ctx.fillText(text, 132, y, W - 210);
   });
   const tex = new THREE.CanvasTexture(canvas);
@@ -239,6 +292,7 @@ function makeStackMesh({ name, count, titles = [], overdue = false, icon = 'doc'
   const sheets = Math.min(3 + count, 10); // 4..10 A5 sheets, height follows count
   const paperA = toon('#fbf7ec');
   const paperB = toon('#efe6d2');
+  const rng = seededRandom(`${name}:${count}`);
   let topY = 0;
   for (let i = 0; i < sheets; i++) {
     const isTop = i === sheets - 1;
@@ -254,13 +308,13 @@ function makeStackMesh({ name, count, titles = [], overdue = false, icon = 'doc'
     // Chaotic pile: per-sheet offset, tilt and drift grow slightly with height.
     const lift = i * A5.t;
     sheet.position.set(
-      (Math.random() - 0.5) * (0.014 + i * 0.001),
+      (rng() - 0.5) * (0.014 + i * 0.001),
       lift + A5.t / 2,
-      (Math.random() - 0.5) * (0.014 + i * 0.001),
+      (rng() - 0.5) * (0.014 + i * 0.001),
     );
-    sheet.rotation.y = (Math.random() - 0.5) * 0.14;
-    sheet.rotation.x = (Math.random() - 0.5) * 0.02;
-    sheet.rotation.z = (Math.random() - 0.5) * 0.02;
+    sheet.rotation.y = (rng() - 0.5) * 0.14;
+    sheet.rotation.x = (rng() - 0.5) * 0.02;
+    sheet.rotation.z = (rng() - 0.5) * 0.02;
     group.add(sheet);
     // Thin ink outline per sheet keeps the anime look without a hard box.
     const edge = new THREE.LineSegments(
@@ -339,14 +393,14 @@ function makeTaskSheet({ text, overdue }, index) {
   face.rotation.x = -Math.PI / 2;
   face.position.y = 0.0025;
   group.add(face);
-  const col = index % 3;
-  const row = Math.floor(index / 3);
-  group.position.set(-0.36 + col * 0.36 + (row % 2) * 0.06, 0.763, 0.52 + row * 0.2);
-  group.rotation.y = (Math.random() - 0.5) * 0.14;
+  const col = index % 4;
+  const row = Math.floor(index / 4);
+  group.position.set(-0.39 + col * 0.26 + (col % 2) * 0.05, 0.763, 0.12 + row * 0.22 + (col % 2) * 0.06);
+  group.rotation.y = -0.12 + (Math.random() - 0.5) * 0.24;
   return group;
 }
 
-export function createScene({ canvas, state, onZoneClick, config = {} }) {
+export function createScene({ canvas, state, onZoneClick, onStackMove, config = {} }) {
   const theme = config.theme ?? 'minimal';
 
   const isMobile = (typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches)
@@ -676,6 +730,12 @@ export function createScene({ canvas, state, onZoneClick, config = {} }) {
   let stackMeshes = [];
   let bubbles = [];
   let stacksBuilt = false;
+  const entryPos = (entry) => {
+    const key = entry.path ?? 'inbox';
+    const p = deskPositions[key];
+    return p && Number.isFinite(p.x) && Number.isFinite(p.z) ? p : null;
+  };
+  let deskPositions = {};
 
   // --- Animation system (visual-spec §6) ---------------------------------
   const tweens = [];
@@ -717,6 +777,11 @@ export function createScene({ canvas, state, onZoneClick, config = {} }) {
   function layoutStacks(deskState) {
     stacksLayer.clear();
     stackMeshes = [];
+    bubbles = [];
+    deskPositions = {};
+    for (const [key, meta] of Object.entries(deskState.config?.stacks ?? {})) {
+      if (meta?.pos) deskPositions[key] = meta.pos;
+    }
     const cfgMeta = {};
     for (const [key, meta] of Object.entries(deskState.config?.stacks ?? {})) {
       const name = key.includes('/') ? key.split('/').pop() : key;
@@ -748,22 +813,27 @@ export function createScene({ canvas, state, onZoneClick, config = {} }) {
     ];
     const deskEntries = all.filter((e) => !e.shelf);
     const shelfEntries = all.filter((e) => e.shelf);
+    // Sketch layout: two loose clusters (left/right), stacks never leave the
+    // desk (|x| ≤ 0.55 m, z within the desktop). Saved positions win.
+    const clusterPos = (i) => {
+      const saved = entryPos(deskEntries[i]);
+      if (saved) {
+        return { x: THREE.MathUtils.clamp(saved.x, -0.55, 0.55), z: THREE.MathUtils.clamp(saved.z, -0.15, 0.45) };
+      }
+      const side = i % 2 === 0 ? -1 : 1;
+      const k = Math.floor(i / 2); // index within the cluster
+      const col = k % 2;
+      const row = Math.floor(k / 2);
+      const jitter = () => (Math.random() - 0.5) * 0.04;
+      const x = side * (0.26 + col * 0.21) + jitter();
+      const z = 0.0 + row * 0.2 + (col % 2) * 0.05 + jitter();
+      return { x, z };
+    };
     const n = deskEntries.length;
-    // Density control: more stacks → wider arc and smaller piles, so they stay
-    // readable and don't overlap (single-row semicircle keeps equal reach).
-    const scale = n > 8 ? 0.72 : n > 6 ? 0.82 : 1;
-    const arc = n > 8 ? (38 * Math.PI) / 180 : STACK_ANGLES;
-    const radius = n > 8 ? 0.85 : STACK_RADIUS;
-    const place = (entry, i, total) => {
-      const t = total === 1 ? 0.5 : i / (total - 1);
-      const angle = -arc + t * 2 * arc;
+    const place = (entry, i) => {
+      const pos = clusterPos(i, n);
       const mesh = makeStackMesh(entry);
-      mesh.scale.setScalar(scale);
-      const target = new THREE.Vector3(
-        Math.sin(angle) * radius,
-        DESK.y + DESK.h / 2,
-        CAMERA.z - Math.cos(angle) * radius,
-      );
+      const target = new THREE.Vector3(pos.x, DESK.y + DESK.h / 2, pos.z);
       mesh.position.copy(target);
       if (!stacksBuilt) {
         mesh.position.y = target.y + 0.15;
@@ -774,11 +844,11 @@ export function createScene({ canvas, state, onZoneClick, config = {} }) {
       stacksLayer.add(mesh);
       stackMeshes.push(mesh);
       const bubble = makeBubble({ name: entry.name, icon: entry.icon ?? 'doc' });
-      bubble.position.set(0, 0.26, 0);
+      bubble.position.set(0, 0.21, 0);
       mesh.add(bubble);
       bubbles.push(bubble);
     };
-    deskEntries.forEach((entry, i) => place(entry, i, n));
+    deskEntries.forEach((entry, i) => place(entry, i));
     // Shelf piles sit on the side shelves, smaller, upright (D-024).
     shelfEntries.forEach((entry, i) => {
       const side = i % 2 === 0 ? -1 : 1;
@@ -792,7 +862,7 @@ export function createScene({ canvas, state, onZoneClick, config = {} }) {
       stacksLayer.add(mesh);
       stackMeshes.push(mesh);
       const bubble = makeBubble({ name: entry.name, icon: entry.icon ?? 'doc' });
-      bubble.position.set(0, 0.18, 0);
+      bubble.position.set(0, 0.16, 0);
       mesh.add(bubble);
       bubbles.push(bubble);
     });
@@ -807,12 +877,12 @@ export function createScene({ canvas, state, onZoneClick, config = {} }) {
     if (all.length > 5) {
       const more = makeStackMesh({ name: `+${all.length - 5}`, count: all.length - 5, accent: '#b7791f' });
       more.scale.setScalar(0.7);
-      more.position.set(0.5, DESK.y + DESK.h / 2, 0.5);
+      more.position.set(0.56, DESK.y + DESK.h / 2, 0.3);
       zoneLayer.add(more);
     }
     // The always-visible blank sheet (capture entry, R-08).
     const blank = makeTaskSheet({ text: '+ New note (N)' }, 8);
-    blank.position.set(0, 0.764, 0.68);
+    blank.position.set(0, 0.764, 0.34);
     blank.userData.blank = true;
     zoneLayer.add(blank);
   }
@@ -869,21 +939,68 @@ export function createScene({ canvas, state, onZoneClick, config = {} }) {
   const raycaster = new THREE.Raycaster();
   const pointer = new THREE.Vector2();
   let downPos = null;
+  let dragStack = null;
+  let dragMoved = false;
+  const dragPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -(DESK.y + DESK.h / 2));
+  const dragPoint = new THREE.Vector3();
   function onPointerDown(e) {
     downPos = { x: e.clientX, y: e.clientY };
+    dragMoved = false;
+    if (e.pointerType !== 'touch' && state?.enabled !== false) {
+      const rect = canvas.getBoundingClientRect();
+      pointer.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+      pointer.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+      raycaster.setFromCamera(pointer, camera);
+      const hits = raycaster.intersectObjects(stackMeshes, true);
+      if (hits.length) {
+        let obj = hits[0].object;
+        while (obj.parent && obj.parent !== stacksLayer) obj = obj.parent;
+        if (obj.userData?.entry) {
+          dragStack = obj;
+          obj.userData.dragging = true;
+          canvas.dataset.dragging = '1';
+          canvas.style.cursor = 'grabbing';
+        }
+      }
+    }
   }
   function onPointerMove(e) {
     if (e.pointerType === 'touch') return;
+    if (dragStack) {
+      const rect = canvas.getBoundingClientRect();
+      pointer.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+      pointer.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+      raycaster.setFromCamera(pointer, camera);
+      if (raycaster.ray.intersectPlane(dragPlane, dragPoint)) {
+        const x = THREE.MathUtils.clamp(dragPoint.x, -0.62, 0.62);
+        const z = THREE.MathUtils.clamp(dragPoint.z, -0.2, 0.62);
+        dragStack.position.set(x, DESK.y + DESK.h / 2, z);
+        dragMoved = true;
+      }
+      return;
+    }
     const rect = canvas.getBoundingClientRect();
     pointer.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
     pointer.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
     raycaster.setFromCamera(pointer, camera);
     const hits = raycaster.intersectObjects(bubbles, false);
     const hit = hits[0]?.object ?? null;
-    for (const b of bubbles) b.userData.setExpanded(b === hit);
+    for (const b of bubbles) b.userData.setExpanded(b === hit && !b.parent?.userData?.dragging);
     canvas.style.cursor = hit ? 'pointer' : '';
   }
   function onPointerUp(e) {
+    if (dragStack) {
+      dragStack.userData.dragging = false;
+      delete canvas.dataset.dragging;
+      if (dragMoved) {
+        const entry = dragStack.userData.entry;
+        onStackMove?.(entry.path ?? 'inbox', { x: dragStack.position.x, z: dragStack.position.z });
+      }
+      dragStack = null;
+      canvas.style.cursor = '';
+      downPos = null;
+      return;
+    }
     if (!downPos) return;
     const moved = Math.hypot(e.clientX - downPos.x, e.clientY - downPos.y);
     downPos = null;
