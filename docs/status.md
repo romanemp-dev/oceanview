@@ -3,6 +3,10 @@ Status
 Phase: 1 — implementation (spec v1.0 frozen)
 
 Done
+- R-17 stack/note redesign per user art direction (748101a): chaotic A5
+  piles (4..10 sheets, height follows item count) with recent titles on the
+  top sheet, flat A6 notes, hover-expanding name bubbles, lower shelves;
+  SW v8.
 - R-17 visual scene, Tier 2 polish (commit 4e2e9a2): side shelves flanking
   the window (D-024) hold shelf-flagged stacks (root-cause fix: readDesk()
   now returns config.json to the scene), 90/36 dust motes kept clear of the
