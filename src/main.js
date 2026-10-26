@@ -14,7 +14,7 @@ import { scanItemFiles, loadIndex, saveIndex, buildBaselineFromScan, diffAgainst
 // PWA (R-18): register the offline shell service worker.
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('sw.js?v=8', { updateViaCache: 'none' }).catch((err) => console.warn('SW registration failed:', err));
+    navigator.serviceWorker.register('sw.js?v=10', { updateViaCache: 'none' }).catch((err) => console.warn('SW registration failed:', err));
   });
 }
 
@@ -662,6 +662,23 @@ async function openWorkspace(nextAdapter, label) {
         const line = JSON.stringify({ ts: Date.now(), agent: 'user', kind: 'stack-move', files: [`${stackPath}/`], detail: { pos } });
         ws.writeItem(`.desk/activity`, `${day}.log`, { type: 'activity' }, line).catch(() => {});
         ws.setStackPos(stackPath, pos).catch((err) => console.warn('stack move failed:', err));
+      },
+      onNoteMove: (note, pos) => {
+        if (!ws?.setNotePos) return;
+        ws.setNotePos(note.dir, note.fileName, pos).catch((err) => console.warn('note move failed:', err));
+      },
+      onNoteIntoStack: async (note, stack) => {
+        const ok = window.confirm(`Переместить заметку «${note.text || note.fileName}» в стопку «${stack.name}»?`);
+        if (!ok) return;
+        try {
+          await ws.moveItem(note.dir, note.fileName, `${STACKS_DIR}/${stack.path ?? stack.name}`);
+          const day = new Date().toISOString().slice(0, 10);
+          const line = JSON.stringify({ ts: Date.now(), agent: 'user', kind: 'note-filed', files: [`${note.dir}/${note.fileName}`], detail: { stack: stack.name } });
+          ws.writeItem(`.desk/activity`, `${day}.log`, { type: 'activity' }, line).catch(() => {});
+          await refresh();
+        } catch (err) {
+          console.warn('note filing failed:', err);
+        }
       },
       onFail: () => {
         // Scene could not render (GPU/rAF issue) — fall back to the DOM desk.

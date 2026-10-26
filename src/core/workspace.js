@@ -253,6 +253,15 @@ export function createWorkspaceModel(adapter, hooks = null) {
       await writeConfig(config);
     },
 
+    async setNotePos(dir, fileName, pos) {
+      const config = await readConfig();
+      config.notes = config.notes ?? {};
+      const key = `${dir}/${fileName}`;
+      config.notes[key] = config.notes[key] ?? {};
+      config.notes[key].pos = { x: Number(pos.x.toFixed(3)), z: Number(pos.z.toFixed(3)) };
+      await writeConfig(config);
+    },
+
     async setStackAgents(name, agents) {
       const config = await readConfig();
       config.stacks = config.stacks ?? {};

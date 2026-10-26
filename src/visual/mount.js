@@ -17,7 +17,7 @@ export function visualEnabled() {
   }
 }
 
-export function mountVisualScene({ canvas, onCaptureClick, onStackMove, onFail }) {
+export function mountVisualScene({ canvas, onCaptureClick, onStackMove, onNoteMove, onNoteIntoStack, onFail }) {
   let cfg = {};
   try {
     cfg = JSON.parse(window.localStorage.getItem('oceanview-visual') ?? '{}');
@@ -30,6 +30,8 @@ export function mountVisualScene({ canvas, onCaptureClick, onStackMove, onFail }
     canvas,
     config: { theme },
     onStackMove,
+    onNoteMove,
+    onNoteIntoStack,
     onZoneClick: (kind, entry) => {
       if (kind === 'capture') onCaptureClick?.();
       if (kind === 'stack') {

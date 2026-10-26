@@ -100,7 +100,7 @@ function makeSheet({ w = 0.24, h = 0.31, color = '#fdfdf8' } = {}) {
   return mesh;
 }
 
-const A5 = { w: 0.148, d: 0.21, t: 0.011 };
+const A5 = { w: 0.148, d: 0.21, t: 0.0037 };
 
 // Deterministic PRNG (mulberry32) seeded from a string — piles keep their
 // chaotic look across refreshes instead of re-shuffling every update.
@@ -129,14 +129,14 @@ const ICONS = {
   book: 'M5 4h6a2 2 0 0 1 2 2v14a2 2 0 0 0-2-2H5z M19 4h-6a2 2 0 0 0-2 2v14a2 2 0 0 1 2-2h6z',
 };
 
-const BUBBLE = { H: 256, pad: 36, icon: 132, gap: 24, font: 52 };
+const BUBBLE = { H: 256, pad: 36, icon: 120, gap: 26, font: 52, radius: 30 };
 
 function drawIcon(ctx, name, x, y, size) {
   const path = new Path2D(ICONS[name] ?? ICONS.doc);
   ctx.save();
   ctx.translate(x, y);
   ctx.scale(size / 24, size / 24);
-  ctx.strokeStyle = 'rgba(255,255,255,0.97)';
+  ctx.strokeStyle = 'rgba(255,255,255,0.95)';
   ctx.lineWidth = 1.35;
   ctx.lineJoin = 'round';
   ctx.lineCap = 'round';
@@ -144,48 +144,59 @@ function drawIcon(ctx, name, x, y, size) {
   ctx.restore();
 }
 
+// Matte-glass rectangle: soft white fill, double hairline stroke, faint
+// diagonal frost bands. Everything is drawn from explicit state each call
+// (fixes the lost-label bug caused by stale canvas/ctx state).
 function drawBubbleFrame(ctx, W, icon, label, textAlpha) {
   const H = BUBBLE.H;
   ctx.clearRect(0, 0, W, H);
-  // Glass body: soft vertical gradient + thin bright outline.
-  const r = H / 2 - 12;
+  // Body: rounded rectangle, frosted.
+  const r = BUBBLE.radius;
   ctx.beginPath();
-  ctx.roundRect(10, 10, W - 20, H - 20, r);
+  ctx.roundRect(8, 8, W - 16, H - 16, r);
   const g = ctx.createLinearGradient(0, 0, 0, H);
-  g.addColorStop(0, 'rgba(255,255,255,0.30)');
-  g.addColorStop(0.55, 'rgba(255,255,255,0.13)');
-  g.addColorStop(1, 'rgba(250,247,240,0.24)');
+  g.addColorStop(0, 'rgba(252,250,245,0.42)');
+  g.addColorStop(1, 'rgba(244,240,230,0.30)');
   ctx.fillStyle = g;
   ctx.fill();
-  ctx.strokeStyle = 'rgba(255,255,255,0.85)';
-  ctx.lineWidth = 3;
-  ctx.stroke();
-  // Corner glints (glass sparkle like the reference).
+  // Frost: two faint diagonal bands (matte glass hint).
   ctx.save();
-  ctx.shadowColor = 'rgba(255,255,255,0.95)';
-  ctx.shadowBlur = 14;
-  ctx.strokeStyle = 'rgba(255,255,255,0.9)';
-  ctx.lineWidth = 4;
-  const gl = [[46, 40, 30, -14], [W - 52, 40, -26, -12], [40, H - 42, 26, 14], [W - 46, H - 44, -30, 12]];
-  for (const [gx, gy, dx, dy] of gl) {
+  ctx.beginPath();
+  ctx.roundRect(8, 8, W - 16, H - 16, r);
+  ctx.clip();
+  ctx.globalAlpha = 0.10;
+  ctx.strokeStyle = '#ffffff';
+  ctx.lineWidth = 26;
+  for (const bx of [W * 0.3, W * 0.62]) {
     ctx.beginPath();
-    ctx.moveTo(gx, gy);
-    ctx.lineTo(gx + dx, gy + dy);
+    ctx.moveTo(bx - 60, H + 20);
+    ctx.lineTo(bx + 60, -20);
     ctx.stroke();
   }
   ctx.restore();
-  // Icon sits at a fixed offset from the LEFT edge (moves with it).
+  // Double hairline: bright outer, soft inner.
+  ctx.beginPath();
+  ctx.roundRect(8, 8, W - 16, H - 16, r);
+  ctx.strokeStyle = 'rgba(255,255,255,0.78)';
+  ctx.lineWidth = 3;
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.roundRect(13, 13, W - 26, H - 26, Math.max(r - 5, 6));
+  ctx.strokeStyle = 'rgba(255,255,255,0.22)';
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+  // Icon at a fixed offset from the LEFT edge (rides it while expanding).
   drawIcon(ctx, icon, BUBBLE.pad, H / 2 - BUBBLE.icon / 2, BUBBLE.icon);
-  // Label fades in to the right of the icon.
+  // Label fades in to the right of the icon. Explicit state every draw.
   if (label && textAlpha > 0.01) {
     ctx.save();
-    ctx.globalAlpha = textAlpha;
-    ctx.fillStyle = 'rgba(255,255,255,0.97)';
+    ctx.globalAlpha = Math.min(Math.max(textAlpha, 0), 1);
     ctx.font = `300 ${BUBBLE.font}px -apple-system, sans-serif`;
     ctx.textAlign = 'left';
     ctx.textBaseline = 'middle';
-    ctx.shadowColor = 'rgba(40, 30, 18, 0.6)';
-    ctx.shadowBlur = 10;
+    ctx.shadowColor = 'rgba(40, 30, 18, 0.65)';
+    ctx.shadowBlur = 8;
+    ctx.fillStyle = '#ffffff';
     ctx.fillText(label, BUBBLE.pad + BUBBLE.icon + BUBBLE.gap, H / 2 + 2, W - (BUBBLE.pad + BUBBLE.icon + BUBBLE.gap) - BUBBLE.pad);
     ctx.restore();
   }
@@ -193,15 +204,13 @@ function drawBubbleFrame(ctx, W, icon, label, textAlpha) {
 
 function makeBubble({ name, icon = 'doc' }) {
   const canvas = document.createElement('canvas');
-  canvas.width = 300;
-  canvas.height = BUBBLE.H;
   const ctx = canvas.getContext('2d');
   const tex = new THREE.CanvasTexture(canvas);
   tex.colorSpace = THREE.SRGBColorSpace;
   const mat = new THREE.SpriteMaterial({
     map: tex,
     transparent: true,
-    opacity: 0.92,
+    opacity: 0.84,
     depthWrite: false,
     depthTest: false,
     toneMapped: false,
@@ -209,22 +218,21 @@ function makeBubble({ name, icon = 'doc' }) {
   const sprite = new THREE.Sprite(mat);
   const WORLD_H = 0.085;
   const label = name.length > 18 ? `${name.slice(0, 17)}…` : name;
+  const W0 = BUBBLE.pad * 2 + BUBBLE.icon;
   ctx.font = `300 ${BUBBLE.font}px -apple-system, sans-serif`;
   const textW = ctx.measureText(label).width;
-  const W0 = BUBBLE.pad * 2 + BUBBLE.icon;
-  const W1 = Math.min(880, W0 + BUBBLE.gap + textW);
+  const W1 = Math.ceil(W0 + BUBBLE.gap + textW + BUBBLE.pad);
   let shownW = W0;
-  let anim = null; // {from, to, fromA, toA, start, dur}
-  drawBubbleFrame(ctx, W0, icon, '', 0);
-  tex.needsUpdate = true;
-
-  function apply(w, alpha) {
+  let anim = null;
+  const apply = (w, alpha) => {
     shownW = w;
-    canvas.width = Math.round(w); // resets ctx state
-    drawBubbleFrame(ctx, w, icon, alpha > 0.01 ? label : '', alpha);
+    const pw = Math.max(Math.round(w), 2);
+    if (canvas.width !== pw) canvas.width = pw; // resets ctx state
+    canvas.height = BUBBLE.H;
+    drawBubbleFrame(ctx, pw, icon, alpha > 0.01 ? label : '', alpha);
     tex.needsUpdate = true;
-    sprite.scale.set(WORLD_H * (w / BUBBLE.H), WORLD_H, 1);
-  }
+    sprite.scale.set(WORLD_H * (pw / BUBBLE.H), WORLD_H, 1);
+  };
   apply(W0, 0);
   sprite.userData = {
     name,
@@ -232,7 +240,7 @@ function makeBubble({ name, icon = 'doc' }) {
     setExpanded(on) {
       if (sprite.userData.expanded === on) return;
       sprite.userData.expanded = on;
-      mat.opacity = on ? 1 : 0.92;
+      mat.opacity = on ? 0.97 : 0.84;
       anim = { from: shownW, to: on ? W1 : W0, fromA: on ? 0 : 1, toA: on ? 1 : 0, start: performance.now(), dur: 240 };
     },
     tick(now) {
@@ -316,6 +324,24 @@ function makeStackMesh({ name, count, titles = [], overdue = false, icon = 'doc'
     sheet.rotation.x = (rng() - 0.5) * 0.02;
     sheet.rotation.z = (rng() - 0.5) * 0.02;
     group.add(sheet);
+    // Minimal corner curl: a small triangular wedge lifts one sheet corner so
+    // no sheet reads as perfectly flat. Corner + lift are per-sheet random.
+    if (!curlGeo) {
+      curlGeo = new THREE.CylinderGeometry(0.016, 0.016, A5.t * 1.02, 12, 1, false, 0, Math.PI / 2);
+    }
+    const curl = new THREE.Mesh(curlGeo, paperA);
+    const corner = Math.floor(rng() * 4);
+    const sx = corner % 2 === 0 ? 1 : -1;
+    const sz = corner < 2 ? 1 : -1;
+    curl.scale.set(1, 1, 1);
+    curl.rotation.set(0, 0, 0);
+    curl.position.set(
+      sheet.position.x + sx * (A5.w / 2 - 0.014),
+      lift + A5.t + 0.0015,
+      sheet.position.z + sz * (A5.d / 2 - 0.014),
+    );
+    curl.rotation.y = ((corner % 2 === 0 ? 0 : Math.PI) + (corner < 2 ? 0 : Math.PI / 2)) + (rng() - 0.5) * 0.5;
+    group.add(curl);
     // Thin ink outline per sheet keeps the anime look without a hard box.
     const edge = new THREE.LineSegments(
       new THREE.EdgesGeometry(new THREE.BoxGeometry(A5.w, A5.t, A5.d)),
@@ -324,7 +350,7 @@ function makeStackMesh({ name, count, titles = [], overdue = false, icon = 'doc'
     edge.position.copy(sheet.position);
     edge.rotation.copy(sheet.rotation);
     group.add(edge);
-    topY = lift + A5.t;
+    topY = lift + A5.t + 0.003;
   }
   if (overdue) {
     const seal = new THREE.Mesh(
@@ -339,6 +365,30 @@ function makeStackMesh({ name, count, titles = [], overdue = false, icon = 'doc'
 }
 
 const A6 = { w: 0.105, h: 0.148 };
+let curlGeo = null; // shared quarter-cylinder wedge for sheet corner curls
+
+// Invisible snap grid (item 4): stacks/notes land on 7 cm cells so piles
+// never overlap and the desk keeps a lived-in but tidy rhythm.
+const GRID = 0.07;
+const snapGrid = (v) => Math.round(v / GRID) * GRID;
+function nearestFreeCell(x, z, taken) {
+  const gx = snapGrid(x);
+  const gz = snapGrid(z);
+  const overs = (cx, cz) => taken.some((p) => Math.abs(p.x - cx) < GRID * 0.9 && Math.abs(p.z - cz) < GRID * 0.9);
+  if (!overs(gx, gz)) return { x: gx, z: gz };
+  for (let r = 1; r <= 4; r++) {
+    for (let dx = -r; dx <= r; dx++) {
+      for (let dz = -r; dz <= r; dz++) {
+        if (Math.max(Math.abs(dx), Math.abs(dz)) !== r) continue;
+        const cx = snapGrid(gx + dx * GRID);
+        const cz = snapGrid(gz + dz * GRID);
+        if (cx < -0.55 || cx > 0.55 || cz < -0.15 || cz > 0.55) continue;
+        if (!overs(cx, cz)) return { x: cx, z: cz };
+      }
+    }
+  }
+  return { x: gx, z: gz };
+}
 
 function a6NoteTexture(text, overdue) {
   const W = 512;
@@ -378,11 +428,11 @@ function a6NoteTexture(text, overdue) {
   return tex;
 }
 
-function makeTaskSheet({ text, overdue }, index) {
+function makeTaskSheet({ text, overdue, dir, fileName }, index, noteRegistry = null) {
   const group = new THREE.Group();
   // A6 note lying flat on the desk, portrait orientation (vertical A6).
   const sheet = new THREE.Mesh(
-    new THREE.BoxGeometry(A6.w, 0.004, A6.h),
+    new THREE.BoxGeometry(A6.w, 0.0035, A6.h),
     new THREE.MeshStandardMaterial({ color: overdue ? '#f6e3de' : '#fdfbf4', roughness: 0.88 }),
   );
   group.add(sheet);
@@ -397,10 +447,14 @@ function makeTaskSheet({ text, overdue }, index) {
   const row = Math.floor(index / 4);
   group.position.set(-0.39 + col * 0.26 + (col % 2) * 0.05, 0.763, 0.12 + row * 0.22 + (col % 2) * 0.06);
   group.rotation.y = -0.12 + (Math.random() - 0.5) * 0.24;
+  if (dir && fileName && noteRegistry) {
+    group.userData.note = { dir, fileName, text };
+    noteRegistry.push(group);
+  }
   return group;
 }
 
-export function createScene({ canvas, state, onZoneClick, onStackMove, config = {} }) {
+export function createScene({ canvas, state, onZoneClick, onStackMove, onNoteMove, onNoteIntoStack, config = {} }) {
   const theme = config.theme ?? 'minimal';
 
   const isMobile = (typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches)
@@ -728,6 +782,7 @@ export function createScene({ canvas, state, onZoneClick, onStackMove, config = 
   scene.add(stacksLayer, zoneLayer);
 
   let stackMeshes = [];
+  let noteMeshes = [];
   let bubbles = [];
   let stacksBuilt = false;
   const entryPos = (entry) => {
@@ -871,9 +926,11 @@ export function createScene({ canvas, state, onZoneClick, onStackMove, config = 
 
   function layoutZone(deskState) {
     zoneLayer.clear();
+    noteMeshes = [];
     const all = collectTodayTasksLocal(deskState);
     const visible = all.slice(0, 5); // D-021: limit 5
-    visible.forEach((task, i) => zoneLayer.add(makeTaskSheet(task, i)));
+    noteMeshes = noteMeshes.filter((m) => m.parent !== zoneLayer);
+    visible.forEach((task, i) => zoneLayer.add(makeTaskSheet(task, i, noteMeshes)));
     if (all.length > 5) {
       const more = makeStackMesh({ name: `+${all.length - 5}`, count: all.length - 5, accent: '#b7791f' });
       more.scale.setScalar(0.7);
@@ -900,7 +957,15 @@ export function createScene({ canvas, state, onZoneClick, onStackMove, config = 
       for (const item of g.items) {
         for (const t of item.tasks ?? []) {
           if (t.done || !t.due) continue;
-          if (t.due <= todayIso) out.push({ text: t.text.replace(/\s*@due\(\d{4}-\d{2}-\d{2}\)/, ''), overdue: t.due < todayIso, due: t.due });
+          if (t.due <= todayIso) {
+            out.push({
+              text: t.text.replace(/\s*@due\(\d{4}-\d{2}-\d{2}\)/, ''),
+              overdue: t.due < todayIso,
+              due: t.due,
+              dir: item.dir,
+              fileName: item.fileName,
+            });
+          }
         }
       }
     }
@@ -941,7 +1006,33 @@ export function createScene({ canvas, state, onZoneClick, onStackMove, config = 
   let downPos = null;
   let dragStack = null;
   let dragMoved = false;
+  const gridOccupancy = () => {
+    const taken = [];
+    for (const m of stackMeshes) {
+      if (m === dragStack) continue;
+      if (m.position.z < 0.55) taken.push({ x: m.position.x, z: m.position.z });
+    }
+    for (const m of noteMeshes) {
+      if (m === dragStack) continue;
+      taken.push({ x: m.position.x, z: m.position.z });
+    }
+    return taken;
+  };
   const dragPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -(DESK.y + DESK.h / 2));
+  // Nearest desk stack within ~1.3 grid cells: drop target for notes.
+  const stackUnder = (x, z) => {
+    let best = null;
+    let bestD = 0.1;
+    for (const m of stackMeshes) {
+      if (!m.userData?.entry || m.position.z < 0.0 || m.position.z > 0.5) continue;
+      const d = Math.hypot(m.position.x - x, m.position.z - z);
+      if (d < bestD) {
+        bestD = d;
+        best = m;
+      }
+    }
+    return best;
+  };
   const dragPoint = new THREE.Vector3();
   function onPointerDown(e) {
     downPos = { x: e.clientX, y: e.clientY };
@@ -951,11 +1042,19 @@ export function createScene({ canvas, state, onZoneClick, onStackMove, config = 
       pointer.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
       pointer.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
       raycaster.setFromCamera(pointer, camera);
-      const hits = raycaster.intersectObjects(stackMeshes, true);
+      const rawHits = raycaster.intersectObjects([...stackMeshes, ...noteMeshes], true);
+      // Sprites (bubbles) must never win the pick: depthTest:false quads
+      // float above piles and made every grab land on the nearest stack.
+      const hits = rawHits.filter((h) => !h.object.isSprite);
       if (hits.length) {
         let obj = hits[0].object;
-        while (obj.parent && obj.parent !== stacksLayer) obj = obj.parent;
+        while (obj.parent && obj.parent !== stacksLayer && obj.parent !== zoneLayer) obj = obj.parent;
         if (obj.userData?.entry) {
+          dragStack = obj;
+          obj.userData.dragging = true;
+          canvas.dataset.dragging = '1';
+          canvas.style.cursor = 'grabbing';
+        } else if (obj.userData?.note) {
           dragStack = obj;
           obj.userData.dragging = true;
           canvas.dataset.dragging = '1';
@@ -972,9 +1071,10 @@ export function createScene({ canvas, state, onZoneClick, onStackMove, config = 
       pointer.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
       raycaster.setFromCamera(pointer, camera);
       if (raycaster.ray.intersectPlane(dragPlane, dragPoint)) {
-        const x = THREE.MathUtils.clamp(dragPoint.x, -0.62, 0.62);
-        const z = THREE.MathUtils.clamp(dragPoint.z, -0.2, 0.62);
-        dragStack.position.set(x, DESK.y + DESK.h / 2, z);
+        const x = THREE.MathUtils.clamp(snapGrid(dragPoint.x), -0.56, 0.56);
+        const z = THREE.MathUtils.clamp(snapGrid(dragPoint.z), -0.14, 0.56);
+        const lift = dragStack.userData?.note ? 0.012 : 0;
+        dragStack.position.set(x, DESK.y + DESK.h / 2 + lift, z);
         dragMoved = true;
       }
       return;
@@ -993,8 +1093,24 @@ export function createScene({ canvas, state, onZoneClick, onStackMove, config = 
       dragStack.userData.dragging = false;
       delete canvas.dataset.dragging;
       if (dragMoved) {
-        const entry = dragStack.userData.entry;
-        onStackMove?.(entry.path ?? 'inbox', { x: dragStack.position.x, z: dragStack.position.z });
+        const note = dragStack.userData?.note;
+        if (note) {
+          const cell = nearestFreeCell(dragStack.position.x, dragStack.position.z, gridOccupancy());
+          dragStack.position.set(cell.x, DESK.y + DESK.h / 2, cell.z);
+          // Dropped onto a pile? Ask before filing the note into that stack.
+          const target = stackUnder(cell.x, cell.z);
+          if (target) {
+            dragStack.position.y = DESK.y + DESK.h / 2;
+            onNoteIntoStack?.(note, { name: target.userData.name, path: target.userData.entry?.path ?? target.userData.name });
+          } else {
+            onNoteMove?.(note, { x: cell.x, z: cell.z });
+          }
+        } else {
+          const cell = nearestFreeCell(dragStack.position.x, dragStack.position.z, gridOccupancy());
+          dragStack.position.set(cell.x, DESK.y + DESK.h / 2, cell.z);
+          const entry = dragStack.userData.entry;
+          onStackMove?.(entry.path ?? 'inbox', { x: cell.x, z: cell.z });
+        }
       }
       dragStack = null;
       canvas.style.cursor = '';
