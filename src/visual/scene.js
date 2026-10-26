@@ -100,69 +100,249 @@ function makeSheet({ w = 0.24, h = 0.31, color = '#fdfdf8' } = {}) {
   return mesh;
 }
 
-function makeStackMesh({ name, count, accent = '#2f6f8f', dashed = false, overdue = false }) {
-  const group = new THREE.Group();
-  const sheets = Math.min(5 + (count % 3), 7);
-  const paper = toon('#f7f0e1');
-  const edgeTint = toon('#e8ddc6');
-  for (let i = 0; i < sheets; i++) {
-    const sheet = new THREE.Mesh(new THREE.BoxGeometry(0.165, 0.012, 0.22), i % 2 ? paper : edgeTint);
-    sheet.position.set((Math.random() - 0.5) * 0.012, i * 0.0125, (Math.random() - 0.5) * 0.012);
-    sheet.rotation.y = (Math.random() - 0.5) * 0.08;
-    group.add(sheet);
+const A5 = { w: 0.148, d: 0.21, t: 0.011 };
+
+// Thin white outline icons (24x24 viewBox paths), transparent fill.
+const ICONS = {
+  doc: 'M7 3h7l4 4v14H7z M14 3v4h4 M9.5 12h5 M9.5 15h5',
+  inbox: 'M4 13l2-7h12l2 7v6H4z M4 13h5a3 3 0 0 0 6 0h5',
+  star: 'M12 3l2.7 5.8 6.3.8-4.6 4.4 1.2 6.2L12 17.2 6.4 20.2l1.2-6.2L3 9.6l6.3-.8z',
+  pen: 'M4 20l1-4L16.5 4.5a2.1 2.1 0 0 1 3 3L8 19z M14 7l3 3',
+};
+
+function iconTexture(name, label = '', { expand = false } = {}) {
+  const W = expand ? 760 : 320;
+  const H = 320;
+  const canvas = document.createElement('canvas');
+  canvas.width = W;
+  canvas.height = H;
+  const ctx = canvas.getContext('2d');
+  // Frosted capsule: soft white fill + thin outline, keeps icons readable
+  // against the bright window or dark shelves.
+  const r = H / 2 - 14;
+  ctx.beginPath();
+  const bw = W - 28;
+  ctx.roundRect(14, 14, bw, H - 28, r);
+  ctx.fillStyle = 'rgba(255, 253, 247, 0.16)';
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.55)';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+  const path = new Path2D(ICONS[name] ?? ICONS.doc);
+  ctx.save();
+  ctx.translate(0, 0);
+  ctx.scale(H / 24, H / 24);
+  ctx.strokeStyle = 'rgba(255,255,255,0.98)';
+  ctx.lineWidth = 1.1;
+  ctx.lineJoin = 'round';
+  ctx.lineCap = 'round';
+  ctx.stroke(path);
+  ctx.restore();
+  if (expand && label) {
+    ctx.fillStyle = 'rgba(255,255,255,0.96)';
+    ctx.font = '300 62px -apple-system, sans-serif';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    // Dark soft shadow behind the text for contrast on glass.
+    ctx.save();
+    ctx.shadowColor = 'rgba(40, 30, 18, 0.55)';
+    ctx.shadowBlur = 12;
+    ctx.fillText(label, 220, H / 2, W - 250);
+    ctx.restore();
   }
-  const topY = sheets * 0.0125;
-  // Crisp ink edges around the pile (thin lines, not a hull — keeps it clean).
-  const edge = new THREE.LineSegments(
-    new THREE.EdgesGeometry(new THREE.BoxGeometry(0.166, topY * 1.02, 0.221)),
-    new THREE.LineBasicMaterial({ color: 0x2a2118, transparent: true, opacity: 0.5 }),
-  );
-  edge.position.set(0, topY / 2, 0);
-  group.add(edge);
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
+}
 
-  const ribbon = new THREE.Mesh(
-    new THREE.BoxGeometry(0.014, 0.002, 0.18),
-    new THREE.MeshBasicMaterial({ color: new THREE.Color(accent), transparent: true, opacity: dashed ? 0.45 : 0.9, toneMapped: false }),
-  );
-  ribbon.position.set(-0.065, topY + 0.002, 0);
-  group.add(ribbon);
+function makeBubble({ name, icon = 'doc' }) {
+  const mat = new THREE.SpriteMaterial({
+    map: iconTexture(icon),
+    transparent: true,
+    opacity: 0.85,
+    depthWrite: false,
+    depthTest: false,
+    toneMapped: false,
+  });
+  const sprite = new THREE.Sprite(mat);
+  sprite.scale.set(0.075, 0.075, 1);
+  sprite.renderOrder = 20;
+  sprite.userData = {
+    name,
+    base: 0.075,
+    expanded: false,
+    setExpanded(on) {
+      if (sprite.userData.expanded === on) return;
+      sprite.userData.expanded = on;
+      mat.opacity = on ? 1 : 0.8;
+      mat.map = iconTexture(icon, on ? name : '', { expand: on });
+      const target = on ? 0.075 + (name.length * 0.011 + 0.04) : 0.075;
+      sprite.userData.targetScale = target;
+      sprite.userData.anim = performance.now();
+    },
+    tick(now) {
+      const t = sprite.userData.targetScale ?? sprite.userData.base;
+      const cur = sprite.scale.x;
+      const next = cur + (t - cur) * Math.min(1, (now - (sprite.userData.anim ?? now)) / 160 + 0.12);
+      if (Math.abs(next - cur) > 0.0001) {
+        sprite.scale.set(next, next * (sprite.userData.base / sprite.userData.base), 1);
+        sprite.scale.y = next;
+      }
+    },
+  };
+  return sprite;
+}
 
-  // Flat label lying on the pile (readable when looking down at the desk).
-  const label = new THREE.Mesh(
-    new THREE.PlaneGeometry(0.12, 0.038),
-    new THREE.MeshBasicMaterial({ map: labelTexture(`${name} · ${count}`, { width: 512, height: 128, bg: 'rgba(255,250,240,1)', color: '#3a2a1c', font: '700 54px -apple-system, sans-serif' }), transparent: true, toneMapped: false }),
-  );
-  label.rotation.x = -Math.PI / 2 + 0.16; // slight lean toward the viewer
-  label.position.set(0, topY + 0.012, 0.07);
-  group.add(label);
 
+function sheetTopTexture(titles, overdue) {
+  const W = 736;
+  const H = 1040;
+  const canvas = document.createElement('canvas');
+  canvas.width = W;
+  canvas.height = H;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#fdfcf6';
+  ctx.fillRect(0, 0, W, H);
+  // Faint ruled lines for a paper feel.
+  ctx.strokeStyle = 'rgba(120, 100, 70, 0.08)';
+  ctx.lineWidth = 3;
+  for (let y = 300; y < H - 80; y += 110) {
+    ctx.beginPath();
+    ctx.moveTo(70, y);
+    ctx.lineTo(W - 70, y);
+    ctx.stroke();
+  }
+  // Recent note titles — small, thin, same family as the A6 notes.
+  ctx.font = '300 60px -apple-system, sans-serif';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'middle';
+  const lines = titles.slice(0, 3);
+  const startY = H / 2 - ((lines.length - 1) * 120) / 2;
+  lines.forEach((t, i) => {
+    const text = t.length > 22 ? `${t.slice(0, 21)}…` : t;
+    const y = startY + i * 120;
+    ctx.fillStyle = overdue && i === 0 ? '#b03a2a' : '#a4917a';
+    ctx.beginPath();
+    ctx.arc(96, y, 11, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = overdue && i === 0 ? '#8f2f22' : '#3f3526';
+    ctx.fillText(text, 132, y, W - 210);
+  });
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.anisotropy = 4;
+  return tex;
+}
+
+function makeStackMesh({ name, count, titles = [], overdue = false, icon = 'doc' }) {
+  const group = new THREE.Group();
+  const sheets = Math.min(3 + count, 10); // 4..10 A5 sheets, height follows count
+  const paperA = toon('#fbf7ec');
+  const paperB = toon('#efe6d2');
+  let topY = 0;
+  for (let i = 0; i < sheets; i++) {
+    const isTop = i === sheets - 1;
+    const mats = [paperA, paperA, paperA, paperB, paperA, paperB];
+    if (isTop) {
+      mats[2] = new THREE.MeshStandardMaterial({
+        map: sheetTopTexture(titles, overdue),
+        roughness: 0.9,
+        metalness: 0,
+      });
+    }
+    const sheet = new THREE.Mesh(new THREE.BoxGeometry(A5.w, A5.t, A5.d), mats);
+    // Chaotic pile: per-sheet offset, tilt and drift grow slightly with height.
+    const lift = i * A5.t;
+    sheet.position.set(
+      (Math.random() - 0.5) * (0.014 + i * 0.001),
+      lift + A5.t / 2,
+      (Math.random() - 0.5) * (0.014 + i * 0.001),
+    );
+    sheet.rotation.y = (Math.random() - 0.5) * 0.14;
+    sheet.rotation.x = (Math.random() - 0.5) * 0.02;
+    sheet.rotation.z = (Math.random() - 0.5) * 0.02;
+    group.add(sheet);
+    // Thin ink outline per sheet keeps the anime look without a hard box.
+    const edge = new THREE.LineSegments(
+      new THREE.EdgesGeometry(new THREE.BoxGeometry(A5.w, A5.t, A5.d)),
+      new THREE.LineBasicMaterial({ color: 0x2a2118, transparent: true, opacity: 0.26 }),
+    );
+    edge.position.copy(sheet.position);
+    edge.rotation.copy(sheet.rotation);
+    group.add(edge);
+    topY = lift + A5.t;
+  }
   if (overdue) {
     const seal = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.014, 0.014, 0.004, 20),
+      new THREE.CylinderGeometry(0.02, 0.02, 0.004, 20),
       new THREE.MeshStandardMaterial({ color: 0xc0392b, roughness: 0.5 }),
     );
-    seal.position.set(0.05, topY + 0.004, 0.07);
+    seal.position.set(0.05, topY + 0.003, 0.08);
     group.add(seal);
   }
-
-  group.userData = { name, count };
+  group.userData = { name, count, topY, icon };
   return group;
+}
+
+const A6 = { w: 0.105, h: 0.148 };
+
+function a6NoteTexture(text, overdue) {
+  const W = 512;
+  const H = 724;
+  const canvas = document.createElement('canvas');
+  canvas.width = W;
+  canvas.height = H;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = overdue ? '#fdf1ee' : '#fefdf8';
+  ctx.fillRect(0, 0, W, H);
+  // Thin border — print feel.
+  ctx.strokeStyle = 'rgba(70, 56, 38, 0.14)';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(26, 26, W - 52, H - 52);
+  ctx.fillStyle = overdue ? '#8f2f22' : '#4a3d2b';
+  ctx.font = '300 42px -apple-system, sans-serif';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'top';
+  const words = text.split(/\s+/);
+  const lines = [];
+  let line = '';
+  for (const w of words) {
+    const test = line ? `${line} ${w}` : w;
+    if (ctx.measureText(test).width > W - 120 && line) {
+      lines.push(line);
+      line = w;
+      if (lines.length >= 4) break;
+    } else {
+      line = test;
+    }
+  }
+  if (line && lines.length < 4) lines.push(line);
+  lines.forEach((t, i) => ctx.fillText(t, 60, 64 + i * 62, W - 120));
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.anisotropy = 4;
+  return tex;
 }
 
 function makeTaskSheet({ text, overdue }, index) {
   const group = new THREE.Group();
-  const sheet = makeSheet({ w: 0.3, h: 0.12, color: overdue ? '#fdeae7' : '#fdfbf4' });
-  group.add(sheet);
-  const trimmed = text.length > 34 ? `${text.slice(0, 34)}…` : text;
-  const label = new THREE.Mesh(
-    new THREE.PlaneGeometry(0.27, 0.09),
-    new THREE.MeshBasicMaterial({ map: labelTexture(trimmed, { width: 512, height: 128, bg: 'rgba(255,252,246,1)', color: '#3a2a1c', font: '600 34px -apple-system, sans-serif' }), toneMapped: false }),
+  // A6 note lying flat on the desk, portrait orientation (vertical A6).
+  const sheet = new THREE.Mesh(
+    new THREE.BoxGeometry(A6.w, 0.004, A6.h),
+    new THREE.MeshStandardMaterial({ color: overdue ? '#f6e3de' : '#fdfbf4', roughness: 0.88 }),
   );
-  label.rotation.x = -Math.PI / 2;
-  label.position.y = 0.002;
-  group.add(label);
-  group.position.set(-0.34 + (index % 3) * 0.34, 0.766, 0.5 + Math.floor(index / 3) * 0.15);
-  group.rotation.y = (Math.random() - 0.5) * 0.05;
+  group.add(sheet);
+  const face = new THREE.Mesh(
+    new THREE.PlaneGeometry(A6.w, A6.h),
+    new THREE.MeshBasicMaterial({ map: a6NoteTexture(text, overdue), toneMapped: false }),
+  );
+  face.rotation.x = -Math.PI / 2;
+  face.position.y = 0.0025;
+  group.add(face);
+  const col = index % 3;
+  const row = Math.floor(index / 3);
+  group.position.set(-0.36 + col * 0.36 + (row % 2) * 0.06, 0.763, 0.52 + row * 0.2);
+  group.rotation.y = (Math.random() - 0.5) * 0.14;
   return group;
 }
 
@@ -293,10 +473,10 @@ export function createScene({ canvas, state, onZoneClick, config = {} }) {
     const shelfMat = new THREE.MeshStandardMaterial({ color: 0x9c7a52, roughness: 0.7 });
     for (const side of [-1, 1]) {
       const board = new THREE.Mesh(new THREE.BoxGeometry(0.44, 0.035, 0.16), shelfMat);
-      board.position.set(side * 0.97, 1.36, -0.42);
+      board.position.set(side * 0.97, 1.18, -0.42);
       environment.add(board);
       const bracket = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.14, 0.12), shelfMat);
-      bracket.position.set(side * 0.97, 1.28, -0.45);
+      bracket.position.set(side * 0.97, 1.1, -0.45);
       environment.add(bracket);
     }
 
@@ -494,6 +674,7 @@ export function createScene({ canvas, state, onZoneClick, config = {} }) {
   scene.add(stacksLayer, zoneLayer);
 
   let stackMeshes = [];
+  let bubbles = [];
   let stacksBuilt = false;
 
   // --- Animation system (visual-spec §6) ---------------------------------
@@ -541,12 +722,24 @@ export function createScene({ canvas, state, onZoneClick, config = {} }) {
       const name = key.includes('/') ? key.split('/').pop() : key;
       cfgMeta[name] = meta ?? {};
     }
+    const recentTitles = (items) => {
+      const sorted = [...(items ?? [])].sort((a, b) => ((a.meta?.updated ?? '') < (b.meta?.updated ?? '') ? 1 : -1));
+      return sorted.slice(0, 3).map((i) => (i.meta?.title ?? i.fileName ?? '').replace(/\.md$/, ''));
+    };
+    const stackIcon = (name) => {
+      const n = name.toLowerCase();
+      if (n.includes('inbox') || n.includes('входящ')) return 'inbox';
+      if (n.includes('иде') || n.includes('заметк')) return 'pen';
+      if (n.includes('важн') || n.includes('star')) return 'star';
+      return 'doc';
+    };
     const all = [
-      { name: 'Inbox', count: deskState.inboxItems.length, accent: '#8a94a0', dashed: true, path: INBOX, shelf: false },
+      { name: 'Inbox', count: deskState.inboxItems.length, titles: recentTitles(deskState.inboxItems), icon: 'inbox', path: INBOX, shelf: false },
       ...deskState.stacks.map((s) => ({
         name: s.name,
         count: s.items.length,
-        accent: s.accent ?? '#2f6f8f',
+        titles: recentTitles(s.items),
+        icon: stackIcon(s.name),
         overdue: s.hasOverdue,
         agents: s.agents ?? [],
         path: s.path,
@@ -580,6 +773,10 @@ export function createScene({ canvas, state, onZoneClick, config = {} }) {
       mesh.userData.home = target.clone();
       stacksLayer.add(mesh);
       stackMeshes.push(mesh);
+      const bubble = makeBubble({ name: entry.name, icon: entry.icon ?? 'doc' });
+      bubble.position.set(0, 0.26, 0);
+      mesh.add(bubble);
+      bubbles.push(bubble);
     };
     deskEntries.forEach((entry, i) => place(entry, i, n));
     // Shelf piles sit on the side shelves, smaller, upright (D-024).
@@ -588,12 +785,16 @@ export function createScene({ canvas, state, onZoneClick, config = {} }) {
       const row = Math.floor(i / 2);
       const mesh = makeStackMesh(entry);
       mesh.scale.setScalar(0.62);
-      mesh.position.set(side * (0.97 - row * 0.02), 1.36 + 0.02 + row * 0.02, -0.4);
+      mesh.position.set(side * (0.97 - row * 0.02), 1.18 + 0.02 + row * 0.02, -0.4);
       mesh.rotation.y = side * -0.12;
       mesh.userData.entry = entry;
       mesh.userData.home = mesh.position.clone();
       stacksLayer.add(mesh);
       stackMeshes.push(mesh);
+      const bubble = makeBubble({ name: entry.name, icon: entry.icon ?? 'doc' });
+      bubble.position.set(0, 0.18, 0);
+      mesh.add(bubble);
+      bubbles.push(bubble);
     });
     stacksBuilt = true;
   }
@@ -611,7 +812,7 @@ export function createScene({ canvas, state, onZoneClick, config = {} }) {
     }
     // The always-visible blank sheet (capture entry, R-08).
     const blank = makeTaskSheet({ text: '+ New note (N)' }, 8);
-    blank.position.set(0, 0.766, 0.6);
+    blank.position.set(0, 0.764, 0.68);
     blank.userData.blank = true;
     zoneLayer.add(blank);
   }
@@ -671,6 +872,17 @@ export function createScene({ canvas, state, onZoneClick, config = {} }) {
   function onPointerDown(e) {
     downPos = { x: e.clientX, y: e.clientY };
   }
+  function onPointerMove(e) {
+    if (e.pointerType === 'touch') return;
+    const rect = canvas.getBoundingClientRect();
+    pointer.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+    pointer.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+    raycaster.setFromCamera(pointer, camera);
+    const hits = raycaster.intersectObjects(bubbles, false);
+    const hit = hits[0]?.object ?? null;
+    for (const b of bubbles) b.userData.setExpanded(b === hit);
+    canvas.style.cursor = hit ? 'pointer' : '';
+  }
   function onPointerUp(e) {
     if (!downPos) return;
     const moved = Math.hypot(e.clientX - downPos.x, e.clientY - downPos.y);
@@ -690,6 +902,7 @@ export function createScene({ canvas, state, onZoneClick, config = {} }) {
   }
   canvas.addEventListener('pointerdown', onPointerDown);
   canvas.addEventListener('pointerup', onPointerUp);
+  canvas.addEventListener('pointermove', onPointerMove);
 
   let running = true;
   let frameCount = 0;
@@ -699,6 +912,7 @@ export function createScene({ canvas, state, onZoneClick, config = {} }) {
     try {
       rig?.tick(now);
       updateTweens(now);
+      for (const b of bubbles) b.userData.tick(now);
       dust?.userData.animate(now);
       grainPass.uniforms.time.value = now * 0.001;
       composer.render();
