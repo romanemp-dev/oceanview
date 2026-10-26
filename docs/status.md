@@ -3,6 +3,13 @@ Status
 Phase: 1 — implementation (spec v1.0 frozen)
 
 Done
+- R-17 visual scene, Tier 2 polish (commit 4e2e9a2): side shelves flanking
+  the window (D-024) hold shelf-flagged stacks (root-cause fix: readDesk()
+  now returns config.json to the scene), 90/36 dust motes kept clear of the
+  camera, additive light shaft, sill props restored after the window move,
+  wider window frame; SW cache v7. LAN hardening (52118af): WebCrypto
+  fallback hash for plain-http, touch swipe camera + tap-vs-swipe guard,
+  touch-action none (39b1412).
 
 Product concept, full docs set, decisions D-001 … D-010.
 Spec v1.0 frozen after user confirmations (platform, slides, review depth, due syntax, name).
