@@ -110,6 +110,8 @@ export function createDemoAdapter() {
         stacks: {
           'Рабочие задачи': { agents: ['claw'] },
           Рецепты: { agents: ['claw'] },
+          Oceanview: { shelf: true, agents: ['claw'] },
+          Дайджесты: { shelf: true },
         },
       },
       null,

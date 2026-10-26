@@ -149,3 +149,16 @@ Consequences: one panorama asset to produce and polish; time-of-day blending
 code deferred; R-17 acceptance is judged on the single scene at three camera
 poses (window / rest / desk); Tier 1–2 of the visual plan are in scope, Tier 3
 is optional/post-v1.0.
+
+D-024
+
+Context: the desk arc becomes crowded at 10+ stacks, and not all stacks are
+equally urgent (documentation, archives, reference material).
+Decision: side wall shelves flanking the window hold "less urgent" stacks.
+Assignment is explicit: `shelf: true` on the stack entry in .desk/config.json
+(the desk UI gets a move-to-shelf action later). Desk shows urgent stacks in
+the arc; shelves hold the rest as smaller piles. Shelf stacks remain fully
+functional items (search/today include them).
+Consequences: desk stays calm at any stack count; shelf visibility depends on
+camera yaw (glance sideways); config.json remains the single source for stack
+metadata; the art direction gains a natural place for reference material.

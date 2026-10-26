@@ -3,6 +3,7 @@
 // The scene subscribes to state; it never reads files itself (D-018).
 // World scale is realistic: desk ~1.4 m wide, seated camera ~0.45 m above it.
 import * as THREE from '../../vendor/three/three.module.js';
+import { INBOX } from '../core/workspace.js';
 import { EffectComposer } from '../../vendor/three/examples/jsm/postprocessing/EffectComposer.js';
 import { RenderPass } from '../../vendor/three/examples/jsm/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from '../../vendor/three/examples/jsm/postprocessing/UnrealBloomPass.js';
@@ -250,10 +251,10 @@ export function createScene({ canvas, state, onZoneClick, config = {} }) {
   if (theme === 'oceanview') {
     environment = new THREE.Group();
     const frame = new THREE.Mesh(
-      new THREE.BoxGeometry(WINDOW.w + 0.06, WINDOW.h + 0.06, 0.05),
+      new THREE.BoxGeometry(WINDOW.w + 0.12, WINDOW.h + 0.12, 0.05),
       new THREE.MeshStandardMaterial({ color: 0x9c7a52, roughness: 0.6 }),
     );
-    frame.position.set(0, WINDOW.cy, WINDOW.z - 0.06);
+    frame.position.set(0, WINDOW.cy, WINDOW.z - 0.04);
     environment.add(frame);
     const glass = new THREE.Mesh(
       new THREE.PlaneGeometry(WINDOW.w, WINDOW.h),
@@ -266,7 +267,7 @@ export function createScene({ canvas, state, onZoneClick, config = {} }) {
       new THREE.BoxGeometry(0.02, WINDOW.h, 0.02),
       new THREE.MeshStandardMaterial({ color: 0x3a4048, roughness: 0.5, metalness: 0.2 }),
     );
-    mullion.position.set(-0.32, WINDOW.cy, WINDOW.z + 0.01);
+    mullion.position.set(-0.32, WINDOW.cy, WINDOW.z + 0.02);
     environment.add(mullion);
     // Windowsill between the window and the desk — future trinkets area.
     const sill = new THREE.Mesh(
@@ -288,24 +289,35 @@ export function createScene({ canvas, state, onZoneClick, config = {} }) {
       wall.position.set(x, y, z);
       environment.add(wall);
     }
+    // Side shelves flanking the window (D-024): less urgent stacks live here.
+    const shelfMat = new THREE.MeshStandardMaterial({ color: 0x9c7a52, roughness: 0.7 });
+    for (const side of [-1, 1]) {
+      const board = new THREE.Mesh(new THREE.BoxGeometry(0.44, 0.035, 0.16), shelfMat);
+      board.position.set(side * 0.97, 1.36, -0.42);
+      environment.add(board);
+      const bracket = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.14, 0.12), shelfMat);
+      bracket.position.set(side * 0.97, 1.28, -0.45);
+      environment.add(bracket);
+    }
+
     // Sill trinkets: a small plant and books (POV reference).
     const pot = new THREE.Mesh(
       new THREE.CylinderGeometry(0.035, 0.028, 0.06, 16),
       toon(0xb5643c),
     );
-    pot.position.set(-0.55, 0.88, -0.55);
+    pot.position.set(-0.55, 0.88, -0.34);
     environment.add(pot);
     const leaves = new THREE.Mesh(
       new THREE.SphereGeometry(0.055, 16, 12),
       toon(0x4f7a4a),
     );
-    leaves.position.set(-0.55, 0.95, -0.55);
+    leaves.position.set(-0.55, 0.95, -0.34);
     environment.add(leaves);
     const book1 = new THREE.Mesh(
       new THREE.BoxGeometry(0.1, 0.02, 0.07),
       toon(0x8a4b3a),
     );
-    book1.position.set(0.5, 0.86, -0.55);
+    book1.position.set(0.5, 0.86, -0.34);
     environment.add(book1);
     const book2 = book1.clone();
     book2.position.y = 0.885;
@@ -402,6 +414,80 @@ export function createScene({ canvas, state, onZoneClick, config = {} }) {
     scene.add(sunPatch);
   }
 
+  // Tier 2 atmosphere: dust motes in the window light + a soft light shaft.
+  let dust = null;
+  let dustSeeds = null;
+  if (theme === 'oceanview') {
+    const dustCount = isMobile ? 36 : 90;
+    const positions = new Float32Array(dustCount * 3);
+    dustSeeds = new Float32Array(dustCount * 2);
+    for (let i = 0; i < dustCount; i++) {
+      positions[i * 3] = (Math.random() - 0.5) * 2.2;
+      positions[i * 3 + 1] = 0.85 + Math.random() * 0.9;
+      positions[i * 3 + 2] = Math.random() * 0.95 - 0.25; // stay clear of the camera at z=0.95
+      dustSeeds[i * 2] = Math.random() * Math.PI * 2;
+      dustSeeds[i * 2 + 1] = 0.3 + Math.random() * 0.7;
+    }
+    const dustGeo = new THREE.BufferGeometry();
+    dustGeo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    const dc = document.createElement('canvas');
+    dc.width = 32;
+    dc.height = 32;
+    const dctx = dc.getContext('2d');
+    const dg = dctx.createRadialGradient(16, 16, 0, 16, 16, 16);
+    dg.addColorStop(0, 'rgba(255, 244, 214, 1)');
+    dg.addColorStop(1, 'rgba(255, 244, 214, 0)');
+    dctx.fillStyle = dg;
+    dctx.fillRect(0, 0, 32, 32);
+    const dustTex = new THREE.CanvasTexture(dc);
+    dust = new THREE.Points(dustGeo, new THREE.PointsMaterial({
+      size: 0.013,
+      map: dustTex,
+      transparent: true,
+      opacity: 0.5,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+    }));
+    dust.userData.animate = (t) => {
+      const pos = dust.geometry.attributes.position;
+      for (let i = 0; i < dustCount; i++) {
+        pos.array[i * 3] += Math.sin(t * 0.0002 + dustSeeds[i * 2]) * 0.0002;
+        pos.array[i * 3 + 1] += Math.sin(t * 0.00035 + dustSeeds[i * 2]) * 0.00012 + 0.00008;
+        if (pos.array[i * 3 + 1] > 1.85) pos.array[i * 3 + 1] = 0.85;
+      }
+      pos.needsUpdate = true;
+      dust.material.opacity = 0.35 + Math.sin(t * 0.0009) * 0.12;
+    };
+    scene.add(dust);
+
+    // Diagonal light shaft from the window across the desk.
+    const shaftCanvas = document.createElement('canvas');
+    shaftCanvas.width = 128;
+    shaftCanvas.height = 128;
+    const sctx = shaftCanvas.getContext('2d');
+    const sg = sctx.createLinearGradient(0, 0, 128, 128);
+    sg.addColorStop(0, 'rgba(255, 232, 190, 0.55)');
+    sg.addColorStop(0.5, 'rgba(255, 232, 190, 0.18)');
+    sg.addColorStop(1, 'rgba(255, 232, 190, 0)');
+    sctx.fillStyle = sg;
+    sctx.fillRect(0, 0, 128, 128);
+    const shaftTex = new THREE.CanvasTexture(shaftCanvas);
+    const shaft = new THREE.Mesh(
+      new THREE.PlaneGeometry(2.6, 1.9),
+      new THREE.MeshBasicMaterial({
+        map: shaftTex,
+        transparent: true,
+        opacity: theme === 'oceanview' ? 0.26 : 0,
+        depthWrite: false,
+        blending: THREE.AdditiveBlending,
+        side: THREE.DoubleSide,
+      }),
+    );
+    shaft.position.set(-0.5, 1.3, 0.05);
+    shaft.rotation.set(0, 0.35, -0.62);
+    scene.add(shaft);
+  }
+
   // Data-driven layers (rebuilt on state refresh).
   const stacksLayer = new THREE.Group();
   const zoneLayer = new THREE.Group();
@@ -450,8 +536,13 @@ export function createScene({ canvas, state, onZoneClick, config = {} }) {
   function layoutStacks(deskState) {
     stacksLayer.clear();
     stackMeshes = [];
-    const entries = [
-      { name: 'Inbox', count: deskState.inboxItems.length, accent: '#8a94a0', dashed: true, path: null },
+    const cfgMeta = {};
+    for (const [key, meta] of Object.entries(deskState.config?.stacks ?? {})) {
+      const name = key.includes('/') ? key.split('/').pop() : key;
+      cfgMeta[name] = meta ?? {};
+    }
+    const all = [
+      { name: 'Inbox', count: deskState.inboxItems.length, accent: '#8a94a0', dashed: true, path: INBOX, shelf: false },
       ...deskState.stacks.map((s) => ({
         name: s.name,
         count: s.items.length,
@@ -459,16 +550,19 @@ export function createScene({ canvas, state, onZoneClick, config = {} }) {
         overdue: s.hasOverdue,
         agents: s.agents ?? [],
         path: s.path,
+        shelf: Boolean(cfgMeta[s.name]?.shelf),
       })),
     ];
-    const n = entries.length;
+    const deskEntries = all.filter((e) => !e.shelf);
+    const shelfEntries = all.filter((e) => e.shelf);
+    const n = deskEntries.length;
     // Density control: more stacks → wider arc and smaller piles, so they stay
     // readable and don't overlap (single-row semicircle keeps equal reach).
     const scale = n > 8 ? 0.72 : n > 6 ? 0.82 : 1;
-    const arc = n > 8 ? (42 * Math.PI) / 180 : STACK_ANGLES;
+    const arc = n > 8 ? (38 * Math.PI) / 180 : STACK_ANGLES;
     const radius = n > 8 ? 0.85 : STACK_RADIUS;
-    entries.forEach((entry, i) => {
-      const t = n === 1 ? 0.5 : i / (n - 1);
+    const place = (entry, i, total) => {
+      const t = total === 1 ? 0.5 : i / (total - 1);
       const angle = -arc + t * 2 * arc;
       const mesh = makeStackMesh(entry);
       mesh.scale.setScalar(scale);
@@ -484,6 +578,20 @@ export function createScene({ canvas, state, onZoneClick, config = {} }) {
       }
       mesh.userData.entry = entry;
       mesh.userData.home = target.clone();
+      stacksLayer.add(mesh);
+      stackMeshes.push(mesh);
+    };
+    deskEntries.forEach((entry, i) => place(entry, i, n));
+    // Shelf piles sit on the side shelves, smaller, upright (D-024).
+    shelfEntries.forEach((entry, i) => {
+      const side = i % 2 === 0 ? -1 : 1;
+      const row = Math.floor(i / 2);
+      const mesh = makeStackMesh(entry);
+      mesh.scale.setScalar(0.62);
+      mesh.position.set(side * (0.97 - row * 0.02), 1.36 + 0.02 + row * 0.02, -0.4);
+      mesh.rotation.y = side * -0.12;
+      mesh.userData.entry = entry;
+      mesh.userData.home = mesh.position.clone();
       stacksLayer.add(mesh);
       stackMeshes.push(mesh);
     });
@@ -591,6 +699,7 @@ export function createScene({ canvas, state, onZoneClick, config = {} }) {
     try {
       rig?.tick(now);
       updateTweens(now);
+      dust?.userData.animate(now);
       grainPass.uniforms.time.value = now * 0.001;
       composer.render();
       frameCount++;

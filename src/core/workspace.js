@@ -293,7 +293,7 @@ export function createWorkspaceModel(adapter, hooks = null) {
       const inboxItems = [];
       for (const f of inboxFiles) inboxItems.push(await readItem(INBOX, f));
 
-      return { stacks, inboxItems, stackPath: clean };
+      return { stacks, inboxItems, stackPath: clean, config: await readConfig() };
     },
 
     readItem,
