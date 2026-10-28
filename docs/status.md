@@ -3,6 +3,10 @@ Status
 Phase: 1 — implementation (spec v1.0 frozen)
 
 Done
+- Round 5 (see commit): authoritative pickAt (desk blocks ray), window-level
+  pointerup/blur guards, 30% carry opacity, re-pick at drag arm, bubbles
+  1.5x smaller + stack-hover expansion + non-stretching icon, A5/A6 -20%,
+  Helvetica Neue, SW v13.
 - Round 4 interaction fix (a0f5103): drag arms only after 8px movement
   (click opens stacks/notes via unified depth pick + onNoteOpen), carried
   objects render at 55% opacity with a fluttering curl until button

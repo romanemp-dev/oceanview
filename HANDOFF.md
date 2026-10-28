@@ -32,6 +32,11 @@ _Last updated: 2026-10-22 (Tier 2 shipped; LAN-ready no-store server)._
   translucent carry + flutter corner, note-into-stack + Inbox filing fixed,
   SW v12 (a0f5103).
 
+### 2026-10-28 (evening)
+- Round 5: pickAt pointer-truth picking, reliable release, 30% carry
+  opacity, -20% props, bubbles smaller + stack-hover + no icon stretch,
+  Helvetica Neue, SW v13.
+
 ## 1. What this project is
 
 Oceanview is a **local-first personal desk web app**. Its database is a normal
