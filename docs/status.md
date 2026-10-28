@@ -3,6 +3,10 @@ Status
 Phase: 1 — implementation (spec v1.0 frozen)
 
 Done
+- Round 7 (see commit): clone-based carry visuals (shared-material leak
+  fixed), raw pointer follow + release tween to grid cell, cancel-glide
+  home for notes, rear-row stackUnder, bubbleLayer with per-frame owner
+  glue, SW v19.
 - Round 6 (see commit): raycast Line/Points thresholds zeroed (decorative
   ink outlines were hijacking every pick — mirror-selection root cause),
   carry opacity 70%, ?picktest probe grid for pick verification, SW v17.
