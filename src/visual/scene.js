@@ -100,7 +100,7 @@ function makeSheet({ w = 0.24, h = 0.31, color = '#fdfdf8' } = {}) {
   return mesh;
 }
 
-const A5 = { w: 0.148, d: 0.21, t: 0.0037 };
+const A5 = { w: 0.118, d: 0.168, t: 0.0037 }; // 20% smaller A5
 
 // Deterministic PRNG (mulberry32) seeded from a string — piles keep their
 // chaotic look across refreshes instead of re-shuffling every update.
@@ -147,9 +147,9 @@ function drawIcon(ctx, name, x, y, size) {
 // Matte-glass rectangle: soft white fill, double hairline stroke, faint
 // diagonal frost bands. Everything is drawn from explicit state each call
 // (fixes the lost-label bug caused by stale canvas/ctx state).
-function drawBubbleFrame(ctx, W, icon, label, textAlpha) {
+function drawBubbleFrame(ctx, W, icon, label, textAlpha, fullW = null) {
   const H = BUBBLE.H;
-  ctx.clearRect(0, 0, W, H);
+  ctx.clearRect(0, 0, fullW ?? W, H);
   // Body: rounded rectangle, frosted.
   const r = BUBBLE.radius;
   ctx.beginPath();
@@ -216,7 +216,7 @@ function makeBubble({ name, icon = 'doc' }) {
     toneMapped: false,
   });
   const sprite = new THREE.Sprite(mat);
-  const WORLD_H = 0.085;
+  const WORLD_H = 0.057; // 1.5x smaller than v1
   const label = name.length > 18 ? `${name.slice(0, 17)}…` : name;
   const W0 = BUBBLE.pad * 2 + BUBBLE.icon;
   ctx.font = `300 ${BUBBLE.font}px -apple-system, sans-serif`;
@@ -224,16 +224,19 @@ function makeBubble({ name, icon = 'doc' }) {
   const W1 = Math.ceil(W0 + BUBBLE.gap + textW + BUBBLE.pad);
   let shownW = W0;
   let anim = null;
+  // Canvas stays at full expanded width (W1) for the sprite's whole life:
+  // the texture aspect never changes, so the icon cannot stretch while the
+  // frame animates — the frame is just drawn narrower inside the canvas.
+  canvas.width = Math.max(Math.ceil(W1), 2);
+  canvas.height = BUBBLE.H;
   const apply = (w, alpha) => {
     shownW = w;
-    const pw = Math.max(Math.round(w), 2);
-    if (canvas.width !== pw) canvas.width = pw; // resets ctx state
-    canvas.height = BUBBLE.H;
-    drawBubbleFrame(ctx, pw, icon, alpha > 0.01 ? label : '', alpha);
+    drawBubbleFrame(ctx, Math.max(Math.round(w), 2), icon, alpha > 0.01 ? label : '', alpha, canvas.width);
     tex.needsUpdate = true;
-    sprite.scale.set(WORLD_H * (pw / BUBBLE.H), WORLD_H, 1);
   };
   apply(W0, 0);
+  sprite.scale.set(WORLD_H * (canvas.width / BUBBLE.H), WORLD_H, 1);
+  sprite.center.set(0.5, 0.5);
   sprite.userData = {
     name,
     expanded: false,
@@ -274,7 +277,7 @@ function sheetTopTexture(titles, overdue) {
     ctx.stroke();
   }
   // Recent note titles — small, thin, same family as the A6 notes.
-  ctx.font = '400 72px -apple-system, sans-serif';
+  ctx.font = '400 60px \'Helvetica Neue\', \'Helvetica Neue LT\', Helvetica, Arial, sans-serif';
   ctx.textAlign = 'left';
   ctx.textBaseline = 'middle';
   const lines = titles.slice(0, 3);
@@ -367,7 +370,7 @@ function makeStackMesh({ name, count, titles = [], overdue = false, icon = 'doc'
   return group;
 }
 
-const A6 = { w: 0.105, h: 0.148 };
+const A6 = { w: 0.084, h: 0.118 }; // 20% smaller A6
 let curlGeo = null; // shared quarter-cylinder wedge for sheet corner curls
 
 // Invisible snap grid (item 4): stacks/notes land on 7 cm cells so piles
@@ -407,7 +410,7 @@ function a6NoteTexture(text, overdue) {
   ctx.lineWidth = 2;
   ctx.strokeRect(26, 26, W - 52, H - 52);
   ctx.fillStyle = overdue ? '#8f2f22' : '#4a3d2b';
-  ctx.font = '300 42px -apple-system, sans-serif';
+  ctx.font = '300 34px \'Helvetica Neue\', \'Helvetica Neue LT\', Helvetica, Arial, sans-serif';
   ctx.textAlign = 'left';
   ctx.textBaseline = 'top';
   const words = text.split(/\s+/);
@@ -1021,7 +1024,7 @@ export function createScene({ canvas, state, onZoneClick, onStackMove, onNoteMov
             o.userData._savedOpacity = o.userData._savedOpacity ?? m.opacity;
             o.userData._savedTransparent = o.userData._savedTransparent ?? m.transparent;
             m.transparent = true;
-            m.opacity = (o.userData._savedOpacity ?? 1) * 0.55;
+            m.opacity = (o.userData._savedOpacity ?? 1) * 0.3;
             m.needsUpdate = true;
           } else if (o.userData._savedOpacity !== undefined) {
             m.opacity = o.userData._savedOpacity;
@@ -1071,40 +1074,54 @@ export function createScene({ canvas, state, onZoneClick, onStackMove, onNoteMov
     return best;
   };
   const dragPoint = new THREE.Vector3();
+  // One authoritative pick for both drag-arm and click-open: distance-sorted
+  // over stacks + zone + desk. The desk mesh BLOCKS the ray, so clicks on
+  // empty wood can never fall through to wall shelves (bug: random stack).
+  // Sprites (bubbles, depthTest:false) never win a pick.
+  const pickAt = (clientX, clientY) => {
+    const rect = canvas.getBoundingClientRect();
+    pointer.x = ((clientX - rect.left) / rect.width) * 2 - 1;
+    pointer.y = -((clientY - rect.top) / rect.height) * 2 + 1;
+    raycaster.setFromCamera(pointer, camera);
+    const hits = raycaster
+      .intersectObjects([...stackMeshes, ...zoneLayer.children, desk], true)
+      .filter((h) => !h.object.isSprite)
+      .sort((a, b) => a.distance - b.distance);
+    const hit = hits[0];
+    if (!hit) return null;
+    if (hit.object === desk) return null; // bare wood: nothing under pointer
+    let obj = hit.object;
+    while (obj.parent && obj.parent !== stacksLayer && obj.parent !== zoneLayer) obj = obj.parent;
+    if (obj === desk || obj === scene) return null;
+    return obj.userData?.entry || obj.userData?.note ? obj : null;
+  };
   function onPointerDown(e) {
     if (e.pointerType === 'touch') return; // touch = camera swipes only
-    let candidate = null;
-    if (state?.enabled !== false) {
-      const rect = canvas.getBoundingClientRect();
-      pointer.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
-      pointer.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
-      raycaster.setFromCamera(pointer, camera);
-      const rawHits = raycaster.intersectObjects([...stackMeshes, ...noteMeshes], true);
-      // Sprites (bubbles) must never win the pick: depthTest:false quads
-      // float above piles and made every grab land on the nearest stack.
-      const hits = rawHits.filter((h) => !h.object.isSprite);
-      if (hits.length) {
-        let obj = hits[0].object;
-        while (obj.parent && obj.parent !== stacksLayer && obj.parent !== zoneLayer) obj = obj.parent;
-        if (obj.userData?.entry || obj.userData?.note) candidate = obj;
-      }
-    }
+    const candidate = state?.enabled === false ? null : pickAt(e.clientX, e.clientY);
     downPos = { x: e.clientX, y: e.clientY, candidate };
     dragStack = null;
     dragMoved = false;
   }
   function onPointerMove(e) {
     if (e.pointerType === 'touch') return;
-    if (!dragStack && downPos?.candidate) {
+    if (!dragStack && downPos) {
       const moved = Math.hypot(e.clientX - downPos.x, e.clientY - downPos.y);
       if (moved > DRAG_THRESHOLD) {
-        dragStack = downPos.candidate;
-        downPos.candidate = null;
-        dragMoved = true; // threshold crossed = definitely not a click
-        dragStack.userData.dragging = true;
-        canvas.dataset.dragging = '1';
-        canvas.style.cursor = 'grabbing';
-        setDraggingVisual(dragStack, true);
+        // Re-pick NOW: zone notes are rebuilt on refresh, the down-time
+        // candidate can be stale (that's how a right-side stack got grabbed
+        // instead of the note). The pointer decides, not history.
+        let target = downPos.candidate;
+        if (target && !target.parent) target = null;
+        if (!target) target = pickAt(e.clientX, e.clientY);
+        downPos = null;
+        if (target) {
+          dragStack = target;
+          dragMoved = true; // threshold crossed = definitely not a click
+          dragStack.userData.dragging = true;
+          canvas.dataset.dragging = '1';
+          canvas.style.cursor = 'grabbing';
+          setDraggingVisual(dragStack, true);
+        }
       }
     }
     if (dragStack) {
@@ -1121,16 +1138,13 @@ export function createScene({ canvas, state, onZoneClick, onStackMove, onNoteMov
       }
       return;
     }
-    const rect = canvas.getBoundingClientRect();
-    pointer.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
-    pointer.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
-    raycaster.setFromCamera(pointer, camera);
-    const hits = raycaster.intersectObjects(bubbles, false);
-    const hit = hits[0]?.object ?? null;
-    for (const b of bubbles) b.userData.setExpanded(b === hit && !b.parent?.userData?.dragging);
-    canvas.style.cursor = hit ? 'pointer' : '';
+    const hoverObj = pickAt(e.clientX, e.clientY);
+    const hoverRoot = hoverObj; // stack/note group under the pointer
+    for (const b of bubbles) b.userData.setExpanded(b.parent === hoverRoot);
+    canvas.style.cursor = hoverRoot ? 'pointer' : '';
   }
   function onPointerUp(e) {
+    if (!e || typeof e.clientX !== 'number') return;
     if (dragStack) {
       const mesh = dragStack;
       dragStack = null; // stops flutter before visual restore
@@ -1165,25 +1179,15 @@ export function createScene({ canvas, state, onZoneClick, onStackMove, onNoteMov
       downPos = null;
       return;
     }
-    // No drag armed: treat as a click (opens stacks/notes/capture).
+    // No drag armed: treat as a click (opens stacks/notes/capture). Same
+    // authoritative pickAt as the drag arm — open exactly what the pointer
+    // is on, nothing else.
     if (!downPos) return;
     const moved = Math.hypot(e.clientX - downPos.x, e.clientY - downPos.y);
-    const candidate = downPos.candidate;
     downPos = null;
     if (moved > DRAG_THRESHOLD) return; // camera swipe, not a tap
-    const rect = canvas.getBoundingClientRect();
-    pointer.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
-    pointer.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
-    raycaster.setFromCamera(pointer, camera);
-    // Single distance-sorted pick: notes, stacks and zone sheets compete by
-    // real depth (a note visually over a pile must win the click).
-    const hits = raycaster.intersectObjects([...stackMeshes, ...zoneLayer.children], true)
-      .filter((h) => !h.object.isSprite)
-      .sort((a, b) => a.distance - b.distance);
-    const hit = hits[0];
-    if (!hit) return;
-    let obj = hit.object;
-    while (obj.parent && obj.parent !== stacksLayer && obj.parent !== zoneLayer) obj = obj.parent;
+    const obj = pickAt(e.clientX, e.clientY);
+    if (!obj) return;
     if (obj.userData?.note) {
       onNoteOpen?.(obj.userData.note);
     } else if (obj.userData?.blank) {
@@ -1193,8 +1197,14 @@ export function createScene({ canvas, state, onZoneClick, onStackMove, onNoteMov
     }
   }
   canvas.addEventListener('pointerdown', onPointerDown);
-  canvas.addEventListener('pointerup', onPointerUp);
+  // Release/leave must be caught even if the pointer leaves the canvas
+  // mid-drag — otherwise a carried pile stays translucent forever.
+  window.addEventListener('pointerup', onPointerUp, true);
+  window.addEventListener('pointercancel', onPointerUp, true);
   canvas.addEventListener('pointermove', onPointerMove);
+  window.addEventListener('blur', () => {
+    if (dragStack) onPointerUp({ clientX: -999, clientY: -999, pointerType: 'mouse' });
+  });
 
   let running = true;
   let frameCount = 0;
