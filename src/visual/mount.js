@@ -74,6 +74,51 @@ export function mountVisualScene({ canvas, onCaptureClick, onStackMove, onNoteMo
     }
   }
 
+  // ?picktest=1: 9x6 probe grid. Every 400ms each cell calls
+  // sceneHandle.debugPick(NDC) and paints the resolved stack's initial.
+  let pickTimer = null;
+  try {
+    if (new URLSearchParams(window.location.search).get('picktest')) {
+      const layer = document.createElement('div');
+      layer.id = 'pick-test';
+      layer.style.cssText = 'position:fixed;inset:0;z-index:9997;pointer-events:none;font:600 13px ui-monospace,monospace;';
+      document.body.appendChild(layer);
+      const COLS = 9;
+      const ROWS = 6;
+      // picktest=shot: paint once (after the scene settles) and stop — so
+      // --virtual-time-budget screenshots terminate. picktest=1: continuous.
+      const once = new URLSearchParams(window.location.search).get('picktest') === 'shot';
+      let ticks = 0;
+      pickTimer = setInterval(() => {
+        if (once && ++ticks > 5) {
+          clearInterval(pickTimer);
+          pickTimer = null;
+          return;
+        }
+        layer.innerHTML = '';
+        const w = window.innerWidth;
+        const h = window.innerHeight;
+        for (let r = 0; r < ROWS; r++) {
+          for (let c = 0; c < COLS; c++) {
+            const nx = ((c + 0.5) / COLS) * 2 - 1;
+            const ny = -(((r + 0.5) / ROWS) * 2 - 1);
+            let name = '';
+            try {
+              const info = sceneHandle?.debugPick?.(nx, ny, true);
+              if (info) name = `${info.name.slice(0, 3)} d${info.distance}`;
+              else name = '·';
+            } catch { name = 'ERR'; }
+            if (!name) continue;
+            const cell = document.createElement('div');
+            cell.textContent = name;
+            cell.style.cssText = `position:absolute;left:${(c / COLS) * w}px;top:${(r / ROWS) * h}px;width:${w / COLS}px;height:${h / ROWS}px;display:flex;align-items:center;justify-content:center;color:#ff2d55;background:rgba(255,255,255,0.25);border:1px solid rgba(255,45,85,0.35);`;
+            layer.appendChild(cell);
+          }
+        }
+      }, 400);
+    }
+  } catch { pickTimer = null; }
+
   let debugBox = null;
   try {
     if (new URLSearchParams(window.location.search).get('debug')) {
@@ -106,6 +151,8 @@ export function mountVisualScene({ canvas, onCaptureClick, onStackMove, onNoteMo
       sceneHandle?.flyNote(stackName);
     },
     dispose() {
+      if (pickTimer) clearInterval(pickTimer);
+      document.getElementById('pick-test')?.remove();
       sceneHandle?.dispose();
       sceneHandle = null;
       document.getElementById('scene-vignette')?.classList.remove('on');

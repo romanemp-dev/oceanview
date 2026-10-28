@@ -14,7 +14,7 @@ import { scanItemFiles, loadIndex, saveIndex, buildBaselineFromScan, diffAgainst
 // PWA (R-18): register the offline shell service worker.
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('sw.js?v=12', { updateViaCache: 'none' }).catch((err) => console.warn('SW registration failed:', err));
+    navigator.serviceWorker.register('sw.js?v=16', { updateViaCache: 'none' }).catch((err) => console.warn('SW registration failed:', err));
   });
 }
 

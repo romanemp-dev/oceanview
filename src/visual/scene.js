@@ -1008,6 +1008,11 @@ export function createScene({ canvas, state, onZoneClick, onStackMove, onNoteMov
   // Tap-vs-swipe guard: only treat as a tap when the pointer barely moved
   // between down and up — otherwise a camera swipe on a stack would open it.
   const raycaster = new THREE.Raycaster();
+  // Ink outlines (LineSegments) and dust (Points) must never win a pick:
+  // their default raycast thresholds are 1 world unit, so every ray "hits"
+  // the nearest decorative edge and mirrors/wrongs the selection.
+  raycaster.params.Line = { threshold: 0.0001 };
+  raycaster.params.Points = { threshold: 0.0001 };
   const pointer = new THREE.Vector2();
   let downPos = null;      // {x,y,target} — target resolved on down, used on up
   let dragStack = null;    // armed only after real movement (never on click)
@@ -1024,7 +1029,7 @@ export function createScene({ canvas, state, onZoneClick, onStackMove, onNoteMov
             o.userData._savedOpacity = o.userData._savedOpacity ?? m.opacity;
             o.userData._savedTransparent = o.userData._savedTransparent ?? m.transparent;
             m.transparent = true;
-            m.opacity = (o.userData._savedOpacity ?? 1) * 0.3;
+            m.opacity = (o.userData._savedOpacity ?? 1) * 0.7;
             m.needsUpdate = true;
           } else if (o.userData._savedOpacity !== undefined) {
             m.opacity = o.userData._savedOpacity;
@@ -1078,10 +1083,8 @@ export function createScene({ canvas, state, onZoneClick, onStackMove, onNoteMov
   // over stacks + zone + desk. The desk mesh BLOCKS the ray, so clicks on
   // empty wood can never fall through to wall shelves (bug: random stack).
   // Sprites (bubbles, depthTest:false) never win a pick.
-  const pickAt = (clientX, clientY) => {
-    const rect = canvas.getBoundingClientRect();
-    pointer.x = ((clientX - rect.left) / rect.width) * 2 - 1;
-    pointer.y = -((clientY - rect.top) / rect.height) * 2 + 1;
+  const pickNdc = (nx, ny, wantInfo = false) => {
+    pointer.set(nx, ny);
     raycaster.setFromCamera(pointer, camera);
     const hits = raycaster
       .intersectObjects([...stackMeshes, ...zoneLayer.children, desk], true)
@@ -1089,11 +1092,23 @@ export function createScene({ canvas, state, onZoneClick, onStackMove, onNoteMov
       .sort((a, b) => a.distance - b.distance);
     const hit = hits[0];
     if (!hit) return null;
-    if (hit.object === desk) return null; // bare wood: nothing under pointer
     let obj = hit.object;
     while (obj.parent && obj.parent !== stacksLayer && obj.parent !== zoneLayer) obj = obj.parent;
+    if (wantInfo) {
+      return {
+        name: obj.userData?.entry?.name ?? (obj.userData?.note ? 'N' : obj === desk ? 'DESK' : (obj.userData?.blank ? 'CAP' : obj.type)),
+        distance: Number(hit.distance.toFixed(2)),
+        point: hit.point.toArray().map((v) => Number(v.toFixed(2))),
+        cam: camera.position.toArray().map((v) => Number(v.toFixed(2))),
+      };
+    }
+    if (hit.object === desk) return null; // bare wood: nothing under pointer
     if (obj === desk || obj === scene) return null;
     return obj.userData?.entry || obj.userData?.note ? obj : null;
+  };
+  const pickAt = (clientX, clientY) => {
+    const rect = canvas.getBoundingClientRect();
+    return pickNdc(((clientX - rect.left) / rect.width) * 2 - 1, -((clientY - rect.top) / rect.height) * 2 + 1);
   };
   function onPointerDown(e) {
     if (e.pointerType === 'touch') return; // touch = camera swipes only
@@ -1251,6 +1266,7 @@ export function createScene({ canvas, state, onZoneClick, onStackMove, onNoteMov
     attachRig,
     flyNote,
     camera,
+    debugPick: pickNdc,
     debug: () => ({
       sceneChildren: scene.children.length,
       stackMeshes: stacksLayer.children.length,
