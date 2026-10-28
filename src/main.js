@@ -14,7 +14,7 @@ import { scanItemFiles, loadIndex, saveIndex, buildBaselineFromScan, diffAgainst
 // PWA (R-18): register the offline shell service worker.
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('sw.js?v=10', { updateViaCache: 'none' }).catch((err) => console.warn('SW registration failed:', err));
+    navigator.serviceWorker.register('sw.js?v=11', { updateViaCache: 'none' }).catch((err) => console.warn('SW registration failed:', err));
   });
 }
 
@@ -667,11 +667,18 @@ async function openWorkspace(nextAdapter, label) {
         if (!ws?.setNotePos) return;
         ws.setNotePos(note.dir, note.fileName, pos).catch((err) => console.warn('note move failed:', err));
       },
+      onNoteOpen: (note) => {
+        if (note?.dir && note?.fileName) {
+          route = { view: 'item', dir: note.dir, fileName: note.fileName, editing: false };
+          refresh();
+        }
+      },
       onNoteIntoStack: async (note, stack) => {
         const ok = window.confirm(`Переместить заметку «${note.text || note.fileName}» в стопку «${stack.name}»?`);
         if (!ok) return;
         try {
-          await ws.moveItem(note.dir, note.fileName, `${STACKS_DIR}/${stack.path ?? stack.name}`);
+          const toDir = !stack.path || stack.path === INBOX ? INBOX : `${STACKS_DIR}/${stack.path}`;
+          await ws.moveItem(note.dir, note.fileName, toDir);
           const day = new Date().toISOString().slice(0, 10);
           const line = JSON.stringify({ ts: Date.now(), agent: 'user', kind: 'note-filed', files: [`${note.dir}/${note.fileName}`], detail: { stack: stack.name } });
           ws.writeItem(`.desk/activity`, `${day}.log`, { type: 'activity' }, line).catch(() => {});

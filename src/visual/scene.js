@@ -330,6 +330,7 @@ function makeStackMesh({ name, count, titles = [], overdue = false, icon = 'doc'
       curlGeo = new THREE.CylinderGeometry(0.016, 0.016, A5.t * 1.02, 12, 1, false, 0, Math.PI / 2);
     }
     const curl = new THREE.Mesh(curlGeo, paperA);
+    if (!group.userData.curl) group.userData.curl = curl; // flutter target
     const corner = Math.floor(rng() * 4);
     const sx = corner % 2 === 0 ? 1 : -1;
     const sz = corner < 2 ? 1 : -1;
@@ -341,6 +342,8 @@ function makeStackMesh({ name, count, titles = [], overdue = false, icon = 'doc'
       sheet.position.z + sz * (A5.d / 2 - 0.014),
     );
     curl.rotation.y = ((corner % 2 === 0 ? 0 : Math.PI) + (corner < 2 ? 0 : Math.PI / 2)) + (rng() - 0.5) * 0.5;
+    curl.userData.baseRotX = curl.rotation.x;
+    curl.userData.baseRotZ = curl.rotation.z;
     group.add(curl);
     // Thin ink outline per sheet keeps the anime look without a hard box.
     const edge = new THREE.LineSegments(
@@ -454,7 +457,7 @@ function makeTaskSheet({ text, overdue, dir, fileName }, index, noteRegistry = n
   return group;
 }
 
-export function createScene({ canvas, state, onZoneClick, onStackMove, onNoteMove, onNoteIntoStack, config = {} }) {
+export function createScene({ canvas, state, onZoneClick, onStackMove, onNoteMove, onNoteIntoStack, onNoteOpen, config = {} }) {
   const theme = config.theme ?? 'minimal';
 
   const isMobile = (typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches)
@@ -1003,9 +1006,43 @@ export function createScene({ canvas, state, onZoneClick, onStackMove, onNoteMov
   // between down and up — otherwise a camera swipe on a stack would open it.
   const raycaster = new THREE.Raycaster();
   const pointer = new THREE.Vector2();
-  let downPos = null;
-  let dragStack = null;
+  let downPos = null;      // {x,y,target} — target resolved on down, used on up
+  let dragStack = null;    // armed only after real movement (never on click)
   let dragMoved = false;
+  const DRAG_THRESHOLD = 8; // px of movement before a press becomes a drag
+  const setDraggingVisual = (mesh, on) => {
+    mesh.userData.dragging = on;
+    mesh.traverse((o) => {
+      if (o.isMesh || o.isSprite) {
+        const mats = Array.isArray(o.material) ? o.material : [o.material];
+        for (const m of mats) {
+          if (!m) continue;
+          if (on) {
+            o.userData._savedOpacity = o.userData._savedOpacity ?? m.opacity;
+            o.userData._savedTransparent = o.userData._savedTransparent ?? m.transparent;
+            m.transparent = true;
+            m.opacity = (o.userData._savedOpacity ?? 1) * 0.55;
+            m.needsUpdate = true;
+          } else if (o.userData._savedOpacity !== undefined) {
+            m.opacity = o.userData._savedOpacity;
+            m.transparent = o.userData._savedTransparent ?? m.transparent;
+            m.needsUpdate = true;
+            delete o.userData._savedOpacity;
+            delete o.userData._savedTransparent;
+          }
+        }
+      }
+    });
+  };
+  // Fluttering corner while carrying: the curl wedge oscillates like paper
+  // caught in a draft. Runs in animate() while dragStack is set.
+  const flutterCurl = (now) => {
+    const curl = dragStack?.userData?.curl;
+    if (!curl) return;
+    const a = Math.sin(now * 0.02) * 0.35 + Math.sin(now * 0.031) * 0.18;
+    curl.rotation.z = curl.userData.baseRotZ + a;
+    curl.rotation.x = curl.userData.baseRotX + Math.cos(now * 0.026) * 0.22;
+  };
   const gridOccupancy = () => {
     const taken = [];
     for (const m of stackMeshes) {
@@ -1035,9 +1072,9 @@ export function createScene({ canvas, state, onZoneClick, onStackMove, onNoteMov
   };
   const dragPoint = new THREE.Vector3();
   function onPointerDown(e) {
-    downPos = { x: e.clientX, y: e.clientY };
-    dragMoved = false;
-    if (e.pointerType !== 'touch' && state?.enabled !== false) {
+    if (e.pointerType === 'touch') return; // touch = camera swipes only
+    let candidate = null;
+    if (state?.enabled !== false) {
       const rect = canvas.getBoundingClientRect();
       pointer.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
       pointer.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
@@ -1049,22 +1086,27 @@ export function createScene({ canvas, state, onZoneClick, onStackMove, onNoteMov
       if (hits.length) {
         let obj = hits[0].object;
         while (obj.parent && obj.parent !== stacksLayer && obj.parent !== zoneLayer) obj = obj.parent;
-        if (obj.userData?.entry) {
-          dragStack = obj;
-          obj.userData.dragging = true;
-          canvas.dataset.dragging = '1';
-          canvas.style.cursor = 'grabbing';
-        } else if (obj.userData?.note) {
-          dragStack = obj;
-          obj.userData.dragging = true;
-          canvas.dataset.dragging = '1';
-          canvas.style.cursor = 'grabbing';
-        }
+        if (obj.userData?.entry || obj.userData?.note) candidate = obj;
       }
     }
+    downPos = { x: e.clientX, y: e.clientY, candidate };
+    dragStack = null;
+    dragMoved = false;
   }
   function onPointerMove(e) {
     if (e.pointerType === 'touch') return;
+    if (!dragStack && downPos?.candidate) {
+      const moved = Math.hypot(e.clientX - downPos.x, e.clientY - downPos.y);
+      if (moved > DRAG_THRESHOLD) {
+        dragStack = downPos.candidate;
+        downPos.candidate = null;
+        dragMoved = true; // threshold crossed = definitely not a click
+        dragStack.userData.dragging = true;
+        canvas.dataset.dragging = '1';
+        canvas.style.cursor = 'grabbing';
+        setDraggingVisual(dragStack, true);
+      }
+    }
     if (dragStack) {
       const rect = canvas.getBoundingClientRect();
       pointer.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
@@ -1090,48 +1132,65 @@ export function createScene({ canvas, state, onZoneClick, onStackMove, onNoteMov
   }
   function onPointerUp(e) {
     if (dragStack) {
-      dragStack.userData.dragging = false;
+      const mesh = dragStack;
+      dragStack = null; // stops flutter before visual restore
+      setDraggingVisual(mesh, false);
+      mesh.userData.dragging = false;
       delete canvas.dataset.dragging;
+      canvas.style.cursor = '';
       if (dragMoved) {
-        const note = dragStack.userData?.note;
+        const note = mesh.userData?.note;
         if (note) {
-          const cell = nearestFreeCell(dragStack.position.x, dragStack.position.z, gridOccupancy());
-          dragStack.position.set(cell.x, DESK.y + DESK.h / 2, cell.z);
+          const dropX = mesh.position.x;
+          const dropZ = mesh.position.z;
           // Dropped onto a pile? Ask before filing the note into that stack.
-          const target = stackUnder(cell.x, cell.z);
+          // Check BEFORE the snap: the free-cell resolver pushes the note
+          // away from the occupied pile cell and broke targeting last round.
+          const target = stackUnder(dropX, dropZ);
           if (target) {
-            dragStack.position.y = DESK.y + DESK.h / 2;
+            mesh.position.set(dropX, DESK.y + DESK.h / 2, dropZ);
             onNoteIntoStack?.(note, { name: target.userData.name, path: target.userData.entry?.path ?? target.userData.name });
           } else {
+            const cell = nearestFreeCell(dropX, dropZ, gridOccupancy());
+            mesh.position.set(cell.x, DESK.y + DESK.h / 2, cell.z);
             onNoteMove?.(note, { x: cell.x, z: cell.z });
           }
         } else {
-          const cell = nearestFreeCell(dragStack.position.x, dragStack.position.z, gridOccupancy());
-          dragStack.position.set(cell.x, DESK.y + DESK.h / 2, cell.z);
-          const entry = dragStack.userData.entry;
+          const cell = nearestFreeCell(mesh.position.x, mesh.position.z, gridOccupancy());
+          mesh.position.set(cell.x, DESK.y + DESK.h / 2, cell.z);
+          const entry = mesh.userData.entry;
           onStackMove?.(entry.path ?? 'inbox', { x: cell.x, z: cell.z });
         }
       }
-      dragStack = null;
-      canvas.style.cursor = '';
       downPos = null;
       return;
     }
+    // No drag armed: treat as a click (opens stacks/notes/capture).
     if (!downPos) return;
     const moved = Math.hypot(e.clientX - downPos.x, e.clientY - downPos.y);
+    const candidate = downPos.candidate;
     downPos = null;
-    if (moved > 8) return; // it was a camera swipe, not a tap
+    if (moved > DRAG_THRESHOLD) return; // camera swipe, not a tap
     const rect = canvas.getBoundingClientRect();
     pointer.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
     pointer.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
     raycaster.setFromCamera(pointer, camera);
-    const hits = raycaster.intersectObjects([...stackMeshes, ...zoneLayer.children], true);
+    // Single distance-sorted pick: notes, stacks and zone sheets compete by
+    // real depth (a note visually over a pile must win the click).
+    const hits = raycaster.intersectObjects([...stackMeshes, ...zoneLayer.children], true)
+      .filter((h) => !h.object.isSprite)
+      .sort((a, b) => a.distance - b.distance);
     const hit = hits[0];
     if (!hit) return;
     let obj = hit.object;
     while (obj.parent && obj.parent !== stacksLayer && obj.parent !== zoneLayer) obj = obj.parent;
-    if (obj.userData?.blank) onZoneClick?.('capture');
-    else if (obj.userData?.entry?.path) onZoneClick?.('stack', obj.userData.entry);
+    if (obj.userData?.note) {
+      onNoteOpen?.(obj.userData.note);
+    } else if (obj.userData?.blank) {
+      onZoneClick?.('capture');
+    } else if (obj.userData?.entry?.path) {
+      onZoneClick?.('stack', obj.userData.entry);
+    }
   }
   canvas.addEventListener('pointerdown', onPointerDown);
   canvas.addEventListener('pointerup', onPointerUp);
@@ -1146,6 +1205,7 @@ export function createScene({ canvas, state, onZoneClick, onStackMove, onNoteMov
       rig?.tick(now);
       updateTweens(now);
       for (const b of bubbles) b.userData.tick(now);
+      if (dragStack) flutterCurl(now);
       dust?.userData.animate(now);
       grainPass.uniforms.time.value = now * 0.001;
       composer.render();
