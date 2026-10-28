@@ -37,6 +37,10 @@ _Last updated: 2026-10-22 (Tier 2 shipped; LAN-ready no-store server)._
   opacity, -20% props, bubbles smaller + stack-hover + no icon stretch,
   Helvetica Neue, SW v13.
 
+### 2026-10-29 (night)
+- Pick root cause: Line/Points raycast thresholds hijacked every ray;
+  zeroed, probe grid verifies honest picking. Carry opacity 70%. SW v17.
+
 ## 1. What this project is
 
 Oceanview is a **local-first personal desk web app**. Its database is a normal

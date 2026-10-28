@@ -3,6 +3,9 @@ Status
 Phase: 1 — implementation (spec v1.0 frozen)
 
 Done
+- Round 6 (see commit): raycast Line/Points thresholds zeroed (decorative
+  ink outlines were hijacking every pick — mirror-selection root cause),
+  carry opacity 70%, ?picktest probe grid for pick verification, SW v17.
 - Round 5 (see commit): authoritative pickAt (desk blocks ray), window-level
   pointerup/blur guards, 30% carry opacity, re-pick at drag arm, bubbles
   1.5x smaller + stack-hover expansion + non-stretching icon, A5/A6 -20%,
