@@ -455,6 +455,7 @@ function makeTaskSheet({ text, overdue, dir, fileName }, index, noteRegistry = n
   group.rotation.y = -0.12 + (Math.random() - 0.5) * 0.24;
   if (dir && fileName && noteRegistry) {
     group.userData.note = { dir, fileName, text };
+    group.userData.owner = group;
     noteRegistry.push(group);
   }
   return group;
@@ -785,7 +786,8 @@ export function createScene({ canvas, state, onZoneClick, onStackMove, onNoteMov
   // Data-driven layers (rebuilt on state refresh).
   const stacksLayer = new THREE.Group();
   const zoneLayer = new THREE.Group();
-  scene.add(stacksLayer, zoneLayer);
+  const bubbleLayer = new THREE.Group(); // uniform bubble scale, never inherits pile scale
+  scene.add(stacksLayer, zoneLayer, bubbleLayer);
 
   let stackMeshes = [];
   let noteMeshes = [];
@@ -837,6 +839,7 @@ export function createScene({ canvas, state, onZoneClick, onStackMove, onNoteMov
 
   function layoutStacks(deskState) {
     stacksLayer.clear();
+    bubbleLayer.clear();
     stackMeshes = [];
     bubbles = [];
     deskPositions = {};
@@ -901,12 +904,14 @@ export function createScene({ canvas, state, onZoneClick, onStackMove, onNoteMov
         moveTween(mesh, target, { duration: 1000, delay: i * 70, ease: easeOutCubic });
       }
       mesh.userData.entry = entry;
+      mesh.userData.owner = mesh; // hover linkage for the bubble layer
       mesh.userData.home = target.clone();
       stacksLayer.add(mesh);
       stackMeshes.push(mesh);
       const bubble = makeBubble({ name: entry.name, icon: entry.icon ?? 'doc' });
-      bubble.position.set(0, 0.21, 0);
-      mesh.add(bubble);
+      bubble.userData.owner = mesh;
+      bubble.position.set(pos.x, DESK.y + DESK.h / 2 + 0.21, pos.z);
+      bubbleLayer.add(bubble);
       bubbles.push(bubble);
     };
     deskEntries.forEach((entry, i) => place(entry, i));
@@ -919,12 +924,14 @@ export function createScene({ canvas, state, onZoneClick, onStackMove, onNoteMov
       mesh.position.set(side * (0.97 - row * 0.02), 1.18 + 0.02 + row * 0.02, -0.4);
       mesh.rotation.y = side * -0.12;
       mesh.userData.entry = entry;
+      mesh.userData.owner = mesh; // hover linkage for the bubble layer
       mesh.userData.home = mesh.position.clone();
       stacksLayer.add(mesh);
       stackMeshes.push(mesh);
       const bubble = makeBubble({ name: entry.name, icon: entry.icon ?? 'doc' });
-      bubble.position.set(0, 0.16, 0);
-      mesh.add(bubble);
+      bubble.userData.owner = mesh;
+      bubble.position.set(mesh.position.x, mesh.position.y + 0.16, mesh.position.z - 0.02);
+      bubbleLayer.add(bubble);
       bubbles.push(bubble);
     });
     stacksBuilt = true;
@@ -1017,28 +1024,29 @@ export function createScene({ canvas, state, onZoneClick, onStackMove, onNoteMov
   let downPos = null;      // {x,y,target} — target resolved on down, used on up
   let dragStack = null;    // armed only after real movement (never on click)
   let dragMoved = false;
+  let dragOrigin = null;   // {x,y,z} where the carried item was grabbed
   const DRAG_THRESHOLD = 8; // px of movement before a press becomes a drag
   const setDraggingVisual = (mesh, on) => {
     mesh.userData.dragging = on;
     mesh.traverse((o) => {
-      if (o.isMesh || o.isSprite) {
+      if (!o.isMesh && !o.isSprite) return;
+      if (on) {
+        // Clone materials for the carry: paperA/paperB are SHARED across all
+        // piles — mutating them in place leaked translucency to other stacks
+        // and broke restore on release. Clones guarantee clean restore.
+        o.userData._origMats = o.material;
         const mats = Array.isArray(o.material) ? o.material : [o.material];
-        for (const m of mats) {
-          if (!m) continue;
-          if (on) {
-            o.userData._savedOpacity = o.userData._savedOpacity ?? m.opacity;
-            o.userData._savedTransparent = o.userData._savedTransparent ?? m.transparent;
-            m.transparent = true;
-            m.opacity = (o.userData._savedOpacity ?? 1) * 0.7;
-            m.needsUpdate = true;
-          } else if (o.userData._savedOpacity !== undefined) {
-            m.opacity = o.userData._savedOpacity;
-            m.transparent = o.userData._savedTransparent ?? m.transparent;
-            m.needsUpdate = true;
-            delete o.userData._savedOpacity;
-            delete o.userData._savedTransparent;
-          }
-        }
+        const clones = mats.map((m) => {
+          const c = m.clone();
+          c.transparent = true;
+          c.opacity = (m.opacity ?? 1) * 0.7;
+          c.depthWrite = false;
+          return c;
+        });
+        o.material = Array.isArray(o.material) ? clones : clones[0];
+      } else if (o.userData._origMats) {
+        o.material = o.userData._origMats;
+        delete o.userData._origMats;
       }
     });
   };
@@ -1067,9 +1075,10 @@ export function createScene({ canvas, state, onZoneClick, onStackMove, onNoteMov
   // Nearest desk stack within ~1.3 grid cells: drop target for notes.
   const stackUnder = (x, z) => {
     let best = null;
-    let bestD = 0.1;
+    let bestD = 0.12; // forgiving: any desk pile within ~1.7 grid cells
     for (const m of stackMeshes) {
-      if (!m.userData?.entry || m.position.z < 0.0 || m.position.z > 0.5) continue;
+      if (!m.userData?.entry) continue;
+      if (m.position.z < -0.1 || m.position.z > 0.55) continue; // desk piles only
       const d = Math.hypot(m.position.x - x, m.position.z - z);
       if (d < bestD) {
         bestD = d;
@@ -1132,6 +1141,7 @@ export function createScene({ canvas, state, onZoneClick, onStackMove, onNoteMov
         if (target) {
           dragStack = target;
           dragMoved = true; // threshold crossed = definitely not a click
+          dragOrigin = { x: target.position.x, y: target.position.y, z: target.position.z };
           dragStack.userData.dragging = true;
           canvas.dataset.dragging = '1';
           canvas.style.cursor = 'grabbing';
@@ -1145,8 +1155,10 @@ export function createScene({ canvas, state, onZoneClick, onStackMove, onNoteMov
       pointer.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
       raycaster.setFromCamera(pointer, camera);
       if (raycaster.ray.intersectPlane(dragPlane, dragPoint)) {
-        const x = THREE.MathUtils.clamp(snapGrid(dragPoint.x), -0.56, 0.56);
-        const z = THREE.MathUtils.clamp(snapGrid(dragPoint.z), -0.14, 0.56);
+        // Smooth follow: raw pointer position, no grid while carrying —
+        // the snap to the nearest free cell happens AFTER release.
+        const x = THREE.MathUtils.clamp(dragPoint.x, -0.58, 0.58);
+        const z = THREE.MathUtils.clamp(dragPoint.z, -0.16, 0.58);
         const lift = dragStack.userData?.note ? 0.012 : 0;
         dragStack.position.set(x, DESK.y + DESK.h / 2 + lift, z);
         dragMoved = true;
@@ -1154,19 +1166,21 @@ export function createScene({ canvas, state, onZoneClick, onStackMove, onNoteMov
       return;
     }
     const hoverObj = pickAt(e.clientX, e.clientY);
-    const hoverRoot = hoverObj; // stack/note group under the pointer
-    for (const b of bubbles) b.userData.setExpanded(b.parent === hoverRoot);
-    canvas.style.cursor = hoverRoot ? 'pointer' : '';
+    const hoverOwner = hoverObj?.userData?.owner; // stack/note that owns the hovered mesh
+    for (const b of bubbles) b.userData.setExpanded(b.userData.owner === hoverOwner && hoverOwner);
+    canvas.style.cursor = hoverObj ? 'pointer' : '';
   }
   function onPointerUp(e) {
     if (!e || typeof e.clientX !== 'number') return;
     if (dragStack) {
       const mesh = dragStack;
+      const origin = dragOrigin;
       dragStack = null; // stops flutter before visual restore
       setDraggingVisual(mesh, false);
       mesh.userData.dragging = false;
       delete canvas.dataset.dragging;
       canvas.style.cursor = '';
+      const settleY = DESK.y + DESK.h / 2;
       if (dragMoved) {
         const note = mesh.userData?.note;
         if (note) {
@@ -1177,20 +1191,33 @@ export function createScene({ canvas, state, onZoneClick, onStackMove, onNoteMov
           // away from the occupied pile cell and broke targeting last round.
           const target = stackUnder(dropX, dropZ);
           if (target) {
-            mesh.position.set(dropX, DESK.y + DESK.h / 2, dropZ);
-            onNoteIntoStack?.(note, { name: target.userData.name, path: target.userData.entry?.path ?? target.userData.name });
+            // Wait for the answer: cancel → glide back to the grab origin.
+            mesh.position.set(dropX, settleY, dropZ);
+            Promise.resolve(
+              onNoteIntoStack?.(note, { name: target.userData.name, path: target.userData.entry?.path ?? target.userData.name }),
+            ).then((outcome) => {
+              if (outcome === false) {
+                moveTween(mesh, new THREE.Vector3(origin.x, settleY, origin.z), { duration: 320, ease: easeOutCubic });
+              }
+            }).catch(() => {
+              moveTween(mesh, new THREE.Vector3(origin.x, settleY, origin.z), { duration: 320, ease: easeOutCubic });
+            });
           } else {
             const cell = nearestFreeCell(dropX, dropZ, gridOccupancy());
-            mesh.position.set(cell.x, DESK.y + DESK.h / 2, cell.z);
+            moveTween(mesh, new THREE.Vector3(cell.x, settleY, cell.z), { duration: 280, ease: easeOutCubic });
             onNoteMove?.(note, { x: cell.x, z: cell.z });
           }
         } else {
           const cell = nearestFreeCell(mesh.position.x, mesh.position.z, gridOccupancy());
-          mesh.position.set(cell.x, DESK.y + DESK.h / 2, cell.z);
+          moveTween(mesh, new THREE.Vector3(cell.x, settleY, cell.z), { duration: 280, ease: easeOutCubic });
           const entry = mesh.userData.entry;
           onStackMove?.(entry.path ?? 'inbox', { x: cell.x, z: cell.z });
         }
+      } else if (origin) {
+        // Threshold never crossed (e.g. blur synthetic) — return home.
+        moveTween(mesh, new THREE.Vector3(origin.x, origin.y, origin.z), { duration: 280, ease: easeOutCubic });
       }
+      dragOrigin = null;
       downPos = null;
       return;
     }
@@ -1229,7 +1256,14 @@ export function createScene({ canvas, state, onZoneClick, onStackMove, onNoteMov
     try {
       rig?.tick(now);
       updateTweens(now);
-      for (const b of bubbles) b.userData.tick(now);
+      for (const b of bubbles) {
+        b.userData.tick(now);
+        const owner = b.userData.owner;
+        if (owner?.parent) {
+          const shelf = !owner.userData?.entry || Math.abs(owner.position.x) > 0.7;
+          b.position.set(owner.position.x, owner.position.y + (shelf ? 0.16 : 0.21), owner.position.z - (shelf ? 0.02 : 0));
+        }
+      }
       if (dragStack) flutterCurl(now);
       dust?.userData.animate(now);
       grainPass.uniforms.time.value = now * 0.001;
