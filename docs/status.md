@@ -3,6 +3,11 @@ Status
 Phase: 1 — implementation (spec v1.0 frozen)
 
 Done
+- Round 4 interaction fix (a0f5103): drag arms only after 8px movement
+  (click opens stacks/notes via unified depth pick + onNoteOpen), carried
+  objects render at 55% opacity with a fluttering curl until button
+  release, note-into-stack drop checks target before snapping, Inbox
+  filing writes to inbox/ dir, SW v12.
 - Round 3 fixes (30f7f07): sprite-filtered drag pick (root cause of
   single-stack grabbing), 3x thinner sheets + corner curl wedge, 7cm snap
   grid with overlap guard, note drag with confirm-to-file, matte glass

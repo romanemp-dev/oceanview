@@ -27,6 +27,11 @@ _Last updated: 2026-10-22 (Tier 2 shipped; LAN-ready no-store server)._
 - Round 3: drag pick fix (sprites excluded), thin curled sheets, snap grid,
   note drag + confirm-to-file, matte rectangular bubbles, SW v11 (30f7f07).
 
+### 2026-10-28
+- Interaction model fixed: click opens / drag moves (arm after 8px),
+  translucent carry + flutter corner, note-into-stack + Inbox filing fixed,
+  SW v12 (a0f5103).
+
 ## 1. What this project is
 
 Oceanview is a **local-first personal desk web app**. Its database is a normal
