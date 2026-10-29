@@ -45,6 +45,10 @@ _Last updated: 2026-10-22 (Tier 2 shipped; LAN-ready no-store server)._
 - Drag carry lifecycle rebuilt (cloned materials, release tweens, cancel
   glide, rear-row filing), bubbles in own layer with owner glue. SW v19.
 
+### 2026-10-29 (night, round 8)
+- Manga clouds, window parallax (4 depth layers; frame-box root cause
+  fixed with strips), color grade pass, rest pitch -0.12. SW v23 (87e0995).
+
 ## 1. What this project is
 
 Oceanview is a **local-first personal desk web app**. Its database is a normal

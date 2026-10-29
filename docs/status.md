@@ -3,6 +3,10 @@ Status
 Phase: 1 — implementation (spec v1.0 frozen)
 
 Done
+- Round 8 (87e0995): manga cloud bubbles (ink outline + tail), window
+  parallax depth (pano -1.5, sky -2.4, cumulus -1.75, haze -0.95; solid
+  frame box replaced with 4 strips — root cause of flat window), anime
+  color grade pass, rest pitch -0.12, SW v23.
 - Round 7 (see commit): clone-based carry visuals (shared-material leak
   fixed), raw pointer follow + release tween to grid cell, cancel-glide
   home for notes, rear-row stackUnder, bubbleLayer with per-frame owner
