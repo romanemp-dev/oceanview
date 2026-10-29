@@ -131,12 +131,12 @@ const ICONS = {
 
 const BUBBLE = { H: 256, pad: 36, icon: 120, gap: 26, font: 52, radius: 30 };
 
-function drawIcon(ctx, name, x, y, size) {
+function drawIcon(ctx, name, x, y, size, color = 'rgba(255,255,255,0.95)') {
   const path = new Path2D(ICONS[name] ?? ICONS.doc);
   ctx.save();
   ctx.translate(x, y);
   ctx.scale(size / 24, size / 24);
-  ctx.strokeStyle = 'rgba(255,255,255,0.95)';
+  ctx.strokeStyle = color;
   ctx.lineWidth = 1.35;
   ctx.lineJoin = 'round';
   ctx.lineCap = 'round';
@@ -144,59 +144,75 @@ function drawIcon(ctx, name, x, y, size) {
   ctx.restore();
 }
 
+// Manga cloud outline: bumpy closed curve around an ellipse + a little tail
+// pointing down (speech-bubble tail toward the stack).
+function cloudPath(ctx, cx, cy, rx, ry, bumps = 9) {
+  const pts = [];
+  for (let i = 0; i < bumps; i++) {
+    const a = (i / bumps) * Math.PI * 2 - Math.PI / 2;
+    const rr = 0.84 + seededRandom(`bump${i}${Math.round(rx)}${Math.round(ry)}`)() * 0.32;
+    pts.push({ x: cx + Math.cos(a) * rx * rr, y: cy + Math.sin(a) * ry * rr });
+  }
+  ctx.beginPath();
+  ctx.moveTo((pts[0].x + pts[1].x) / 2, (pts[0].y + pts[1].y) / 2);
+  for (let i = 1; i <= bumps; i++) {
+    const p = pts[i % bumps];
+    const n = pts[(i + 1) % bumps];
+    ctx.quadraticCurveTo(p.x, p.y, (p.x + n.x) / 2, (p.y + n.y) / 2);
+  }
+  ctx.closePath();
+}
+
 // Matte-glass rectangle: soft white fill, double hairline stroke, faint
 // diagonal frost bands. Everything is drawn from explicit state each call
 // (fixes the lost-label bug caused by stale canvas/ctx state).
+const INK = '#2a2118';
+
 function drawBubbleFrame(ctx, W, icon, label, textAlpha, fullW = null) {
   const H = BUBBLE.H;
   ctx.clearRect(0, 0, fullW ?? W, H);
-  // Body: rounded rectangle, frosted.
-  const r = BUBBLE.radius;
-  ctx.beginPath();
-  ctx.roundRect(8, 8, W - 16, H - 16, r);
-  const g = ctx.createLinearGradient(0, 0, 0, H);
-  g.addColorStop(0, 'rgba(252,250,245,0.42)');
-  g.addColorStop(1, 'rgba(244,240,230,0.30)');
+  // Manga speech cloud: bumpy body, opaque white, fat ink outline, tail down.
+  const cx = W / 2;
+  const cy = H / 2 - 6;
+  const rx = W / 2 - 16;
+  const ry = H / 2 - 22;
+  ctx.save();
+  ctx.shadowColor = 'rgba(42, 33, 24, 0.20)';
+  ctx.shadowBlur = 14;
+  ctx.shadowOffsetY = 4;
+  cloudPath(ctx, cx, cy, rx, ry);
+  const g = ctx.createLinearGradient(0, cy - ry, 0, cy + ry);
+  g.addColorStop(0, 'rgba(255,255,255,0.99)');
+  g.addColorStop(1, 'rgba(240,244,248,0.96)');
   ctx.fillStyle = g;
   ctx.fill();
-  // Frost: two faint diagonal bands (matte glass hint).
-  ctx.save();
-  ctx.beginPath();
-  ctx.roundRect(8, 8, W - 16, H - 16, r);
-  ctx.clip();
-  ctx.globalAlpha = 0.10;
-  ctx.strokeStyle = '#ffffff';
-  ctx.lineWidth = 26;
-  for (const bx of [W * 0.3, W * 0.62]) {
-    ctx.beginPath();
-    ctx.moveTo(bx - 60, H + 20);
-    ctx.lineTo(bx + 60, -20);
-    ctx.stroke();
-  }
   ctx.restore();
-  // Double hairline: bright outer, soft inner.
+  // Tail (two soft arcs) pointing down at the stack.
   ctx.beginPath();
-  ctx.roundRect(8, 8, W - 16, H - 16, r);
-  ctx.strokeStyle = 'rgba(255,255,255,0.78)';
-  ctx.lineWidth = 3;
+  ctx.moveTo(cx - 16, cy + ry - 8);
+  ctx.quadraticCurveTo(cx - 8, cy + ry + 24, cx + 1, cy + ry + 30);
+  ctx.quadraticCurveTo(cx + 9, cy + ry + 22, cx + 17, cy + ry - 6);
+  ctx.closePath();
+  ctx.fillStyle = 'rgba(255,255,255,0.98)';
+  ctx.fill();
+  ctx.strokeStyle = INK;
+  ctx.lineWidth = 4.5;
   ctx.stroke();
-  ctx.beginPath();
-  ctx.roundRect(13, 13, W - 26, H - 26, Math.max(r - 5, 6));
-  ctx.strokeStyle = 'rgba(255,255,255,0.22)';
-  ctx.lineWidth = 1.5;
+  // Body ink outline on top.
+  cloudPath(ctx, cx, cy, rx, ry);
+  ctx.strokeStyle = INK;
+  ctx.lineWidth = 5;
   ctx.stroke();
-  // Icon at a fixed offset from the LEFT edge (rides it while expanding).
-  drawIcon(ctx, icon, BUBBLE.pad, H / 2 - BUBBLE.icon / 2, BUBBLE.icon);
-  // Label fades in to the right of the icon. Explicit state every draw.
+  // Ink icon at a fixed offset from the LEFT edge (rides it while expanding).
+  drawIcon(ctx, icon, BUBBLE.pad, H / 2 - BUBBLE.icon / 2, BUBBLE.icon, INK);
+  // Label fades in to the right of the icon — ink on white, like manga.
   if (label && textAlpha > 0.01) {
     ctx.save();
     ctx.globalAlpha = Math.min(Math.max(textAlpha, 0), 1);
-    ctx.font = `300 ${BUBBLE.font}px -apple-system, sans-serif`;
+    ctx.font = `500 ${BUBBLE.font}px 'Helvetica Neue', Helvetica, Arial, sans-serif`;
     ctx.textAlign = 'left';
     ctx.textBaseline = 'middle';
-    ctx.shadowColor = 'rgba(40, 30, 18, 0.65)';
-    ctx.shadowBlur = 8;
-    ctx.fillStyle = '#ffffff';
+    ctx.fillStyle = INK;
     ctx.fillText(label, BUBBLE.pad + BUBBLE.icon + BUBBLE.gap, H / 2 + 2, W - (BUBBLE.pad + BUBBLE.icon + BUBBLE.gap) - BUBBLE.pad);
     ctx.restore();
   }
@@ -210,7 +226,7 @@ function makeBubble({ name, icon = 'doc' }) {
   const mat = new THREE.SpriteMaterial({
     map: tex,
     transparent: true,
-    opacity: 0.84,
+    opacity: 0.97,
     depthWrite: false,
     depthTest: false,
     toneMapped: false,
@@ -243,7 +259,7 @@ function makeBubble({ name, icon = 'doc' }) {
     setExpanded(on) {
       if (sprite.userData.expanded === on) return;
       sprite.userData.expanded = on;
-      mat.opacity = on ? 0.97 : 0.84;
+      mat.opacity = on ? 1.0 : 0.97;
       anim = { from: shownW, to: on ? W1 : W0, fromA: on ? 0 : 1, toA: on ? 1 : 0, start: performance.now(), dur: 240 };
     },
     tick(now) {
@@ -463,6 +479,9 @@ function makeTaskSheet({ text, overdue, dir, fileName }, index, noteRegistry = n
 
 export function createScene({ canvas, state, onZoneClick, onStackMove, onNoteMove, onNoteIntoStack, onNoteOpen, config = {} }) {
   const theme = config.theme ?? 'minimal';
+  const noview = (() => { try { return new URLSearchParams(window.location.search).get('noview') === '1'; } catch { return false; } })();
+  const nograde = (() => { try { return new URLSearchParams(window.location.search).get('nograde') === '1'; } catch { return false; } })();
+  const probe = (() => { try { return new URLSearchParams(window.location.search).get('probetest') === '1'; } catch { return false; } })();
 
   const isMobile = (typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches)
     || /iPhone|iPad|Android/i.test(navigator.userAgent);
@@ -476,6 +495,7 @@ export function createScene({ canvas, state, onZoneClick, onStackMove, onNoteMov
   renderer.outputColorSpace = THREE.SRGBColorSpace;
 
   const scene = new THREE.Scene();
+  const bgprobe = (() => { try { return new URLSearchParams(window.location.search).get('bgprobe') === '1'; } catch { return false; } })();
   scene.background = new THREE.Color(theme === 'oceanview' ? 0xd9cbb2 : 0xf4f6f8);
   // Subtle atmospheric depth (barely visible indoors, helps the window view).
   scene.fog = new THREE.Fog(theme === 'oceanview' ? 0xd9cbb2 : 0xf4f6f8, 6, 18);
@@ -512,6 +532,36 @@ export function createScene({ canvas, state, onZoneClick, onStackMove, onNoteMov
     ].join('\n'),
   };
   const grainPass = new ShaderPass(GrainShader);
+
+  // Color grade (Tier 2): anime film look — richer saturation, lifted teal
+  // shadows, warm highlights, gentle S-curve. Cheap single-pass shader.
+  const GradeShader = {
+    uniforms: {
+      tDiffuse: { value: null },
+      saturation: { value: theme === 'oceanview' ? 1.22 : 1.08 },
+      lift: { value: new THREE.Vector3(0.012, 0.028, 0.052) },   // teal shadows
+      gain: { value: new THREE.Vector3(1.055, 1.02, 0.955) },    // warm highs
+      contrast: { value: 1.09 },
+    },
+    vertexShader: `varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
+    fragmentShader: `
+      uniform sampler2D tDiffuse;
+      uniform float saturation;
+      uniform vec3 lift;
+      uniform vec3 gain;
+      uniform float contrast;
+      varying vec2 vUv;
+      void main() {
+        vec4 c = texture2D(tDiffuse, vUv);
+        vec3 col = c.rgb * gain + lift;
+        col = (col - 0.5) * contrast + 0.5;
+        float l = dot(col, vec3(0.2126, 0.7152, 0.0722));
+        col = clamp(mix(vec3(l), col, saturation), 0.0, 1.0);
+        gl_FragColor = vec4(col, c.a);
+      }`,
+  };
+  const gradePass = new ShaderPass(GradeShader);
+  if (!nograde) composer.addPass(gradePass);
   composer.addPass(grainPass);
   composer.addPass(new OutputPass());
 
@@ -522,7 +572,7 @@ export function createScene({ canvas, state, onZoneClick, onStackMove, onNoteMov
   // Faint room ambient so the dark walls read as walls, not void.
   const ambient = new THREE.AmbientLight(0xfff2dd, theme === 'oceanview' ? 0.42 : 0.0);
   scene.add(ambient);
-  const sun = new THREE.DirectionalLight(0xffd9a8, theme === 'oceanview' ? 2.0 : 1.0);
+  const sun = new THREE.DirectionalLight(0xffd9a8, theme === 'oceanview' ? 2.3 : 1.0);
   sun.position.set(-1.2, 2.4, -0.9);
   scene.add(sun);
   const fill = new THREE.DirectionalLight(0xbfd4e8, theme === 'oceanview' ? 0.35 : 0.0);
@@ -545,15 +595,24 @@ export function createScene({ canvas, state, onZoneClick, onStackMove, onNoteMov
   let environment = null;
   if (theme === 'oceanview') {
     environment = new THREE.Group();
-    const frame = new THREE.Mesh(
-      new THREE.BoxGeometry(WINDOW.w + 0.12, WINDOW.h + 0.12, 0.05),
-      new THREE.MeshStandardMaterial({ color: 0x9c7a52, roughness: 0.6 }),
-    );
-    frame.position.set(0, WINDOW.cy, WINDOW.z - 0.04);
-    environment.add(frame);
+    const frameMat = new THREE.MeshStandardMaterial({ color: 0x9c7a52, roughness: 0.6 });
+    const frameT = 0.06; // frame strip thickness
+    const frameDepth = 0.05;
+    const frameZ = WINDOW.z - 0.04;
+    const frameDefs = [
+      [WINDOW.w + 0.24, frameT, 0, WINDOW.cy + WINDOW.h / 2 + frameT / 2], // top
+      [WINDOW.w + 0.24, frameT, 0, WINDOW.cy - WINDOW.h / 2 - frameT / 2], // bottom
+      [frameT, WINDOW.h, -WINDOW.w / 2 - frameT / 2, WINDOW.cy], // left
+      [frameT, WINDOW.h, WINDOW.w / 2 + frameT / 2, WINDOW.cy], // right
+    ];
+    for (const [w, h, x, y] of frameDefs) {
+      const strip = new THREE.Mesh(new THREE.BoxGeometry(w, h, frameDepth), frameMat);
+      strip.position.set(x, y, frameZ);
+      environment.add(strip);
+    }
     const glass = new THREE.Mesh(
       new THREE.PlaneGeometry(WINDOW.w, WINDOW.h),
-      new THREE.MeshBasicMaterial({ color: 0xbfe2ef }),
+      new THREE.MeshBasicMaterial({ color: 0xdff1f7, transparent: true, opacity: 0.1, depthWrite: false }),
     );
     glass.position.set(0, WINDOW.cy, WINDOW.z);
     environment.add(glass);
@@ -643,26 +702,109 @@ export function createScene({ canvas, state, onZoneClick, onStackMove, onNoteMov
       pen.rotation.x = i % 2 ? 0.05 : -0.04;
       environment.add(pen);
     });
+    // DEPTH LAYERS (parallax on camera yaw): sky (far) → panorama (mid) →
+    // drifting cumulus (near-far) → haze veil (nearest). Each layer sits at
+    // its own z behind the window opening; rotation slides them against
+    // each other, giving the view real depth instead of a flat poster.
+    // Sky gradient plane (farthest, z -2.4): 'Your Name' blue with a warm
+    // horizon band.
+    const skyFar = document.createElement('canvas');
+    skyFar.width = 64;
+    skyFar.height = 512;
+    const skyCtx = skyFar.getContext('2d');
+    const sg = skyCtx.createLinearGradient(0, 0, 0, 512);
+    sg.addColorStop(0, '#4f8fc0');
+    sg.addColorStop(0.45, '#8fc3e0');
+    sg.addColorStop(0.62, '#d8ecf2');
+    sg.addColorStop(0.70, '#f2e3c4');
+    sg.addColorStop(1, '#dfe8e4');
+    skyCtx.fillStyle = sg;
+    skyCtx.fillRect(0, 0, 64, 512);
+    const skyTex = new THREE.CanvasTexture(skyFar);
+    skyTex.colorSpace = THREE.SRGBColorSpace;
+    const skyPlane = new THREE.Mesh(
+      new THREE.PlaneGeometry(WINDOW.w * 2.6, WINDOW.h * 2.6),
+      new THREE.MeshBasicMaterial({ color: probe ? 0xff0000 : 0xffffff, map: probe ? null : skyTex, fog: false }),
+    );
+    const probeZ = (() => { try { const v = parseFloat(new URLSearchParams(window.location.search).get('probeZ')); return Number.isFinite(v) ? v : -2.4; } catch { return -2.4; } })();
+    skyPlane.position.set(0, WINDOW.cy + 0.5, probeZ);
+    environment.add(skyPlane);
+
+    // Drifting cumulus band between the panorama and the haze: flat-based
+    // puffy clouds (manga/anime staple), slow drift + yaw parallax.
+    const cloudTexCanvas = document.createElement('canvas');
+    cloudTexCanvas.width = 1024;
+    cloudTexCanvas.height = 256;
+    const cctx = cloudTexCanvas.getContext('2d');
+    const drawCloud = (x, y, scale) => {
+      cctx.save();
+      cctx.translate(x, y);
+      cctx.scale(scale, scale);
+      cctx.beginPath();
+      cctx.arc(-46, -8, 26, Math.PI * 0.5, Math.PI * 1.5);
+      cctx.arc(-16, -26, 30, Math.PI * 0.8, Math.PI * 1.95);
+      cctx.arc(24, -22, 26, Math.PI * 1.2, Math.PI * 0.15);
+      cctx.arc(48, -6, 24, Math.PI * 1.5, Math.PI * 0.5);
+      cctx.closePath();
+      const cg = cctx.createLinearGradient(0, -56, 0, 10);
+      cg.addColorStop(0, 'rgba(255,255,255,0.98)');
+      cg.addColorStop(0.75, 'rgba(238,242,246,0.95)');
+      cg.addColorStop(1, 'rgba(208,220,232,0.92)');
+      cctx.fillStyle = cg;
+      cctx.fill();
+      cctx.restore();
+    };
+    for (const [x, y, sc] of [[70, 150, 1.0], [300, 110, 0.72], [520, 170, 1.15], [760, 100, 0.66], [950, 160, 0.95]]) drawCloud(x, y, sc);
+    const cloudTex = new THREE.CanvasTexture(cloudTexCanvas);
+    cloudTex.colorSpace = THREE.SRGBColorSpace;
+    const cloudPlane = new THREE.Mesh(
+      new THREE.PlaneGeometry(WINDOW.w * 2.1, WINDOW.w * 2.1 * 0.25),
+      new THREE.MeshBasicMaterial(probe ? { color: 0x00ff00, fog: false } : { map: cloudTex, transparent: true, depthWrite: false, fog: false }),
+    );
+    cloudPlane.position.set(0, WINDOW.cy + 0.55, -1.75);
+    environment.add(cloudPlane);
+    cloudPlane.userData.animate = (now) => {
+      const t = now * 0.000012;
+      cloudPlane.position.x = Math.sin(t) * 0.22;
+    };
+
+    // Haze veil right behind the panorama: sells aerial perspective.
+    const hazeTex = (() => {
+      const c = document.createElement('canvas');
+      c.width = 64; c.height = 256;
+      const hctx = c.getContext('2d');
+      const hg = hctx.createLinearGradient(0, 0, 0, 256);
+      hg.addColorStop(0, 'rgba(214,232,240,0)');
+      hg.addColorStop(0.72, 'rgba(222,236,242,0.10)');
+      hg.addColorStop(1, 'rgba(232,240,244,0.26)');
+      hctx.fillStyle = hg;
+      hctx.fillRect(0, 0, 64, 256);
+      const t = new THREE.CanvasTexture(c);
+      t.colorSpace = THREE.SRGBColorSpace;
+      return t;
+    })();
+    const haze = new THREE.Mesh(
+      new THREE.PlaneGeometry(WINDOW.w * 2.2, WINDOW.h * 2.2),
+      new THREE.MeshBasicMaterial(probe ? { color: 0x0000ff, transparent: true, opacity: 0.9, depthWrite: false, fog: false } : { map: hazeTex, transparent: true, depthWrite: false, fog: false }),
+    );
+    haze.position.set(0, WINDOW.cy - 0.25, -0.95);
+    environment.add(haze);
+
     // Placeholder sky texture; replaced by A0 panorama once loaded.
     const skyCanvas = document.createElement('canvas');
     skyCanvas.width = 64;
     skyCanvas.height = 256;
     const sctx = skyCanvas.getContext('2d');
-    const grad = sctx.createLinearGradient(0, 0, 0, 256);
-    grad.addColorStop(0, '#7fb8d8');
-    grad.addColorStop(0.55, '#cfe6ef');
-    grad.addColorStop(0.56, '#5d7d6a');
-    grad.addColorStop(1, '#3d5a4a');
-    sctx.fillStyle = grad;
+    sctx.fillStyle = '#cfe0e8';
     sctx.fillRect(0, 0, 64, 256);
-    const skyTex = new THREE.CanvasTexture(skyCanvas);
-    skyTex.colorSpace = THREE.SRGBColorSpace;
+    const panoPlaceholder = new THREE.CanvasTexture(skyCanvas);
+    panoPlaceholder.colorSpace = THREE.SRGBColorSpace;
     const view = new THREE.Mesh(
-      new THREE.PlaneGeometry(WINDOW.w, WINDOW.h),
-      new THREE.MeshBasicMaterial({ map: skyTex }),
+      new THREE.PlaneGeometry(WINDOW.w * 1.9, WINDOW.h * 1.9),
+      new THREE.MeshBasicMaterial(probe ? { color: 0xffff00 } : { map: panoPlaceholder }),
     );
-    view.position.set(0, WINDOW.cy, WINDOW.z + 0.005);
-    environment.add(view);
+    view.position.set(0, WINDOW.cy + 0.1, -1.5);
+    if (!noview) environment.add(view);
 
     // A0: real panorama from the user's reference (assets/panorama/bay-view.jpg).
     new THREE.TextureLoader().load('assets/panorama/bay-view.jpg', (tex) => {
@@ -670,12 +812,13 @@ export function createScene({ canvas, state, onZoneClick, onStackMove, onNoteMov
       const planeAspect = WINDOW.w / WINDOW.h;
       tex.wrapS = THREE.ClampToEdgeWrapping;
       tex.wrapT = THREE.ClampToEdgeWrapping;
+      const zoom = 1.35; // visible slice of the pano through the opening
       if (imgAspect < planeAspect) {
-        tex.repeat.set(1, imgAspect / planeAspect);
-        tex.offset.set(0, (1 - imgAspect / planeAspect) / 2);
+        tex.repeat.set(1 / zoom, (imgAspect / planeAspect) / zoom);
+        tex.offset.set((1 - 1 / zoom) / 2, (1 - (imgAspect / planeAspect) / zoom) / 2);
       } else {
-        tex.repeat.set(planeAspect / imgAspect, 1);
-        tex.offset.set((1 - planeAspect / imgAspect) / 2, 0);
+        tex.repeat.set((planeAspect / imgAspect) / zoom, 1 / zoom);
+        tex.offset.set((1 - (planeAspect / imgAspect) / zoom) / 2, Math.max((1 - 1 / zoom) / 2 - 0.06, 0));
       }
       tex.colorSpace = THREE.SRGBColorSpace;
       tex.anisotropy = renderer.capabilities.getMaxAnisotropy();
@@ -1266,6 +1409,7 @@ export function createScene({ canvas, state, onZoneClick, onStackMove, onNoteMov
       }
       if (dragStack) flutterCurl(now);
       dust?.userData.animate(now);
+      environment?.children.forEach((o) => o.userData?.animate?.(now));
       grainPass.uniforms.time.value = now * 0.001;
       composer.render();
       frameCount++;
@@ -1305,6 +1449,9 @@ export function createScene({ canvas, state, onZoneClick, onStackMove, onNoteMov
       sceneChildren: scene.children.length,
       stackMeshes: stacksLayer.children.length,
       zoneMeshes: zoneLayer.children.length,
+      envChildren: environment?.children.length ?? -1,
+      envZ: environment?.children.map((o) => Number(o.position.z.toFixed(1))) ?? [],
+      viewMap: (() => { const v = environment?.children.find((o) => o.position.z === -1.5); const m = v?.material?.map; return m ? `${m.image?.width ?? '?'}x${m.image?.height ?? '?'}` : 'none'; })(),
       cam: camera.position.toArray().map((v) => Number(v.toFixed(2))),
       quat: camera.quaternion.toArray().map((v) => Number(v.toFixed(2))),
       size: [renderer.domElement.width, renderer.domElement.height],

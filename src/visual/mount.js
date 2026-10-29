@@ -67,10 +67,18 @@ export function mountVisualScene({ canvas, onCaptureClick, onStackMove, onNoteMo
   })();
   if (camParam) {
     rig.state.drifting = false;
-    const poses = { window: 0.02, rest: -0.18, mid: 0, desk: -0.6 };
+    const poses = { window: 0.02, rest: -0.12, mid: 0, desk: -0.6 };
     if (camParam in poses) {
       rig.state.targetPitch = poses[camParam];
       rig.state.pitch = poses[camParam];
+    }
+    const yawParam = (() => {
+      try { return parseFloat(new URLSearchParams(window.location.search).get('yaw')); } catch { return NaN; }
+    })();
+    if (Number.isFinite(yawParam)) {
+      rig.state.targetYaw = (yawParam * Math.PI) / 180;
+      rig.state.yaw = rig.state.targetYaw;
+      rig.state.drifting = false;
     }
   }
 
@@ -119,6 +127,11 @@ export function mountVisualScene({ canvas, onCaptureClick, onStackMove, onNoteMo
     }
   } catch { pickTimer = null; }
 
+  window.__ovErrors = window.__ovErrors ?? [];
+  window.addEventListener('error', (e) => {
+    window.__ovErrors.push(String(e.message ?? e).slice(0, 160));
+  });
+
   let debugBox = null;
   try {
     if (new URLSearchParams(window.location.search).get('debug')) {
@@ -141,6 +154,7 @@ export function mountVisualScene({ canvas, onCaptureClick, onStackMove, onNoteMo
             ...sceneHandle.debug(),
             stacks: deskState.stacks.length,
             inbox: deskState.inboxItems.length,
+            winErr: window.__ovErrors ?? [],
           }, null, 1);
         } catch (e) {
           debugBox.textContent = 'debug error: ' + e.message;

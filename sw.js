@@ -3,7 +3,7 @@
 // manual SW bump), falling back to the cache when offline. The workspace
 // files come from the File System Access API, never from the network — the
 // SW does not touch them.
-const CACHE = 'oceanview-v19';
+const CACHE = 'oceanview-v23';
 const SHELL = [
   '/',
   '/index.html',
