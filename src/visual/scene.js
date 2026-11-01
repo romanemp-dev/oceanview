@@ -13,7 +13,7 @@ import { OutputPass } from '../../vendor/three/examples/jsm/postprocessing/Outpu
 // --- Layout constants (metres) ------------------------------------------
 const DESK = { w: 1.4, h: 0.08, d: 1.12, y: 0.72, z: 0.28 }; // top = 0.76
 const CAMERA = { x: 0, y: 1.18, z: 0.95 };
-const WINDOW = { w: 1.4, h: 0.96, cy: 1.32, z: -0.40 };
+const WINDOW = { w: 1.4, h: 0.96, cy: 1.28, z: -0.40 }; // dropped: sill bottom ~3mm over desk top
 const STACK_RADIUS = 0.8;
 const STACK_ANGLES = Math.PI / 6; // ±30°
 
@@ -305,13 +305,13 @@ function sheetTopTexture(titles, overdue) {
   const ctx = canvas.getContext('2d');
   ctx.fillStyle = '#fdfcf6';
   ctx.fillRect(0, 0, W, H);
-  // Faint ruled lines for a paper feel.
-  ctx.strokeStyle = 'rgba(120, 100, 70, 0.08)';
+  // Horizontal ruled lines (anime notebook ref): soft blue, even spacing.
+  ctx.strokeStyle = 'rgba(100, 140, 190, 0.22)';
   ctx.lineWidth = 3;
-  for (let y = 300; y < H - 80; y += 110) {
+  for (let y = 180; y < H - 60; y += 96) {
     ctx.beginPath();
-    ctx.moveTo(70, y);
-    ctx.lineTo(W - 70, y);
+    ctx.moveTo(64, y);
+    ctx.lineTo(W - 64, y);
     ctx.stroke();
   }
   // Recent note titles — small, thin, same family as the A6 notes.
@@ -404,6 +404,14 @@ function makeStackMesh({ name, count, titles = [], overdue = false, icon = 'doc'
     seal.position.set(0.05, topY + 0.003, 0.08);
     group.add(seal);
   }
+  // Clean ink outline around the pile: one BackSide hull of the pile bounds.
+  const pileHull = new THREE.Mesh(
+    new THREE.BoxGeometry(A5.w + 0.0035, topY + 0.002, A5.d + 0.0035),
+    OUTLINE_MAT,
+  );
+  // Bottom flush with the desk: only sides+top stroke, nothing pokes below.
+  pileHull.position.y = (topY + 0.002) / 2;
+  group.add(pileHull);
   group.userData = { name, count, topY, icon };
   return group;
 }
@@ -447,6 +455,15 @@ function a6NoteTexture(text, overdue) {
   ctx.strokeStyle = 'rgba(70, 56, 38, 0.14)';
   ctx.lineWidth = 2;
   ctx.strokeRect(26, 26, W - 52, H - 52);
+  // Horizontal ruled lines (anime ref).
+  ctx.strokeStyle = 'rgba(100, 140, 190, 0.20)';
+  ctx.lineWidth = 2;
+  for (let y = 300; y < H - 40; y += 78) {
+    ctx.beginPath();
+    ctx.moveTo(44, y);
+    ctx.lineTo(W - 44, y);
+    ctx.stroke();
+  }
   ctx.fillStyle = overdue ? '#8f2f22' : '#4a3d2b';
   ctx.font = '300 34px \'Helvetica Neue\', \'Helvetica Neue LT\', Helvetica, Arial, sans-serif';
   ctx.textAlign = 'left';
@@ -489,8 +506,14 @@ function makeTaskSheet({ text, overdue, dir, fileName }, index, noteRegistry = n
   group.add(face);
   const col = index % 4;
   const row = Math.floor(index / 4);
-  group.position.set(-0.39 + col * 0.26 + (col % 2) * 0.05, 0.763, 0.12 + row * 0.22 + (col % 2) * 0.06);
+  group.position.set(-0.39 + col * 0.26 + (col % 2) * 0.05, 0.7625, 0.12 + row * 0.22 + (col % 2) * 0.06);
   group.rotation.y = -0.12 + (Math.random() - 0.5) * 0.24;
+  const noteHull = new THREE.Mesh(
+    new THREE.BoxGeometry(A6.w + 0.003, 0.006, A6.h + 0.003),
+    OUTLINE_MAT,
+  );
+  noteHull.position.y = 0.001;
+  group.add(noteHull);
   if (dir && fileName && noteRegistry) {
     group.userData.note = { dir, fileName, text };
     group.userData.owner = group;
@@ -661,7 +684,7 @@ export function createScene({ canvas, state, onZoneClick, onStackMove, onNoteMov
       new THREE.BoxGeometry(WINDOW.w + 0.04, 0.04, 0.12),
       new THREE.MeshStandardMaterial({ color: 0xfefdfa, roughness: 0.7 }),
     );
-    sill.position.set(0, 0.83, -0.34); // front edge flush with the desk (z = -0.28)
+    sill.position.set(0, 0.783, -0.34); // bottom 0.763: 3mm above the desk top (0.76)
     sill.geometry.computeBoundingBox();
     environment.add(sill, addOutline(sill));
     // Wall around the window (references: warm room, window pops).
@@ -681,11 +704,11 @@ export function createScene({ canvas, state, onZoneClick, onStackMove, onNoteMov
     const shelfMat = new THREE.MeshStandardMaterial({ color: 0xfefdfa, roughness: 0.7 });
     for (const side of [-1, 1]) {
       const board = new THREE.Mesh(new THREE.BoxGeometry(0.44, 0.035, 0.16), shelfMat);
-      board.position.set(side * 0.97, 1.18, -0.42);
+      board.position.set(side * 1.08, 1.18, -0.42);
       board.geometry.computeBoundingBox();
       environment.add(board, addOutline(board));
       const bracket = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.14, 0.12), shelfMat);
-      bracket.position.set(side * 0.97, 1.1, -0.45);
+      bracket.position.set(side * 1.08, 1.1, -0.45);
       bracket.geometry.computeBoundingBox();
       environment.add(bracket, addOutline(bracket));
     }
@@ -695,22 +718,22 @@ export function createScene({ canvas, state, onZoneClick, onStackMove, onNoteMov
       new THREE.CylinderGeometry(0.035, 0.028, 0.06, 16),
       toon(0xb5643c),
     );
-    pot.position.set(-0.55, 0.88, -0.34);
+    pot.position.set(-0.55, 0.833, -0.34);
     environment.add(pot);
     const leaves = new THREE.Mesh(
       new THREE.SphereGeometry(0.055, 16, 12),
       toon(0x4f7a4a),
     );
-    leaves.position.set(-0.55, 0.95, -0.34);
+    leaves.position.set(-0.55, 0.903, -0.34);
     environment.add(leaves);
     const book1 = new THREE.Mesh(
       new THREE.BoxGeometry(0.1, 0.02, 0.07),
       toon(0x8a4b3a),
     );
-    book1.position.set(0.5, 0.86, -0.34);
+    book1.position.set(0.5, 0.813, -0.34);
     environment.add(book1);
     const book2 = book1.clone();
-    book2.position.y = 0.885;
+    book2.position.y = 0.838;
     book2.rotation.y = 0.2;
     environment.add(book2);
     for (const prop of [pot, leaves, book1, book2]) {
@@ -964,13 +987,13 @@ export function createScene({ canvas, state, onZoneClick, onStackMove, onNoteMov
       return t;
     })();
     const beamDefs = [
-      { x: -0.75, w: 0.11, o: 0.5 },
-      { x: -0.52, w: 0.06, o: 0.66 },
-      { x: -0.36, w: 0.16, o: 0.38 },
-      { x: -0.14, w: 0.08, o: 0.58 },
-      { x: 0.06, w: 0.04, o: 0.7 },
-      { x: 0.24, w: 0.1, o: 0.42 },
-      { x: 0.45, w: 0.05, o: 0.55 },
+      { x: -0.75, w: 0.11, o: 0.34 },
+      { x: -0.52, w: 0.06, o: 0.46 },
+      { x: -0.36, w: 0.16, o: 0.26 },
+      { x: -0.14, w: 0.08, o: 0.4 },
+      { x: 0.06, w: 0.04, o: 0.5 },
+      { x: 0.24, w: 0.1, o: 0.28 },
+      { x: 0.45, w: 0.05, o: 0.38 },
     ];
     for (const b of beamDefs) {
       const beam = new THREE.Mesh(
@@ -985,10 +1008,12 @@ export function createScene({ canvas, state, onZoneClick, onStackMove, onNoteMov
           fog: false,
         }),
       );
-      // From the window's top-left corner diagonally down across the desk,
-      // slightly toward the viewer so beams read ON the room, not in glass.
-      beam.position.set(b.x + 0.45, 1.5, 0.16);
-      beam.rotation.set(-0.12, 0.1, -0.66);
+      // Anchored INSIDE the window opening (top edge), streaming along the
+      // sun vector: sun sits upper-left behind the window, so beams enter
+      // tilting from window-left-top toward desk-right-front.
+      const entryY = WINDOW.cy + WINDOW.h / 2 - 0.06;
+      beam.position.set(b.x * 0.55 - 0.1, entryY - 0.55, WINDOW.z + 0.28);
+      beam.rotation.set(0.1, 0.05, -0.48);
       rayGroup.add(beam);
     }
     // Whole fan breathes very slowly (living light).
@@ -1116,7 +1141,7 @@ export function createScene({ canvas, state, onZoneClick, onStackMove, onNoteMov
     const place = (entry, i) => {
       const pos = clusterPos(i, n);
       const mesh = makeStackMesh(entry);
-      const target = new THREE.Vector3(pos.x, DESK.y + DESK.h / 2, pos.z);
+      const target = new THREE.Vector3(pos.x, DESK.y + DESK.h / 2 + 0.001, pos.z);
       mesh.position.copy(target);
       if (!stacksBuilt) {
         mesh.position.y = target.y + 0.15;
@@ -1134,26 +1159,85 @@ export function createScene({ canvas, state, onZoneClick, onStackMove, onNoteMov
       bubbles.push(bubble);
     };
     deskEntries.forEach((entry, i) => place(entry, i));
-    // Shelf piles sit on the side shelves, smaller, upright (D-024).
+    // Shelf stacks live in vertical cardboard file boxes (STAFF-box ref,
+    // D-024): white box + label plate + string tie, stack hidden inside.
     shelfEntries.forEach((entry, i) => {
       const side = i % 2 === 0 ? -1 : 1;
       const row = Math.floor(i / 2);
-      const mesh = makeStackMesh(entry);
-      mesh.scale.setScalar(0.62);
-      mesh.position.set(side * (0.97 - row * 0.02), 1.18 + 0.02 + row * 0.02, -0.4);
-      mesh.rotation.y = side * -0.12;
-      mesh.userData.entry = entry;
-      mesh.userData.owner = mesh; // hover linkage for the bubble layer
-      mesh.userData.home = mesh.position.clone();
-      stacksLayer.add(mesh);
-      stackMeshes.push(mesh);
+      const box = makeFileBox({ name: entry.name });
+      box.position.set(side * (1.08 - row * 0.02), 1.1975, -0.4);
+      box.rotation.y = side * -0.14;
+      box.userData.entry = entry;
+      box.userData.owner = box;
+      box.userData.home = box.position.clone();
+      stacksLayer.add(box);
+      stackMeshes.push(box);
       const bubble = makeBubble({ name: entry.name, icon: entry.icon ?? 'doc' });
-      bubble.userData.owner = mesh;
-      bubble.position.set(mesh.position.x, mesh.position.y + 0.16, mesh.position.z - 0.02);
+      bubble.userData.owner = box;
+      bubble.position.set(box.position.x, box.position.y + 0.155, box.position.z - 0.02);
       bubbleLayer.add(bubble);
       bubbles.push(bubble);
     });
     stacksBuilt = true;
+
+    // Vertical file box (round 9 item 5): cardboard-white upright box,
+    // label plate with ruled lines, string-tie button on the front.
+    function makeFileBox({ name }) {
+      const group = new THREE.Group();
+      const boxMat = new THREE.MeshStandardMaterial({ color: 0xfefdfa, roughness: 0.85 });
+      const W = 0.13, H = 0.185, D = 0.055;
+      const body = new THREE.Mesh(new THREE.BoxGeometry(W, H, D), boxMat);
+      body.position.y = H / 2;
+      body.geometry.computeBoundingBox();
+      group.add(body, addOutline(body, { thickness: 0.003 }));
+      // Lid lip (slightly wider top band, like real archive boxes).
+      const lip = new THREE.Mesh(new THREE.BoxGeometry(W + 0.006, 0.018, D + 0.006), boxMat);
+      lip.position.y = H - 0.009;
+      lip.geometry.computeBoundingBox();
+      group.add(lip, addOutline(lip, { thickness: 0.002 }));
+      // Label plate: recessed rectangle with ruled lines (canvas texture).
+      const label = (() => {
+        const c = document.createElement('canvas');
+        c.width = 256; c.height = 192;
+        const x = c.getContext('2d');
+        x.fillStyle = '#fefdfa';
+        x.fillRect(0, 0, 256, 192);
+        x.strokeStyle = 'rgba(74, 61, 46, 0.85)';
+        x.lineWidth = 5;
+        x.strokeRect(24, 24, 208, 144);
+        x.lineWidth = 3;
+        for (let ly = 64; ly <= 128; ly += 32) {
+          x.beginPath();
+          x.moveTo(48, ly);
+          x.lineTo(208, ly);
+          x.stroke();
+        }
+        const t = new THREE.CanvasTexture(c);
+        t.colorSpace = THREE.SRGBColorSpace;
+        return t;
+      })();
+      const plate = new THREE.Mesh(
+        new THREE.PlaneGeometry(W * 0.66, W * 0.66 * (192 / 256)),
+        new THREE.MeshBasicMaterial({ map: label, toneMapped: false }),
+      );
+      plate.position.set(0, H * 0.52, D / 2 + 0.0005);
+      group.add(plate);
+      // String-tie: two tiny discs + a thread line on the front edge.
+      const discMat = new THREE.MeshStandardMaterial({ color: 0xf2ede2, roughness: 0.6 });
+      for (const dx of [-0.03, 0.03]) {
+        const disc = new THREE.Mesh(new THREE.CylinderGeometry(0.006, 0.006, 0.004, 12), discMat);
+        disc.rotation.x = Math.PI / 2;
+        disc.position.set(dx, H * 0.28, D / 2 + 0.002);
+        group.add(disc);
+      }
+      const thread = new THREE.Mesh(
+        new THREE.BoxGeometry(0.058, 0.003, 0.003),
+        new THREE.MeshBasicMaterial({ color: 0xd8cfc0 }),
+      );
+      thread.position.set(0, H * 0.28, D / 2 + 0.004);
+      group.add(thread);
+      return group;
+    }
   }
 
   function layoutZone(deskState) {
