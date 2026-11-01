@@ -3,6 +3,10 @@ Status
 Phase: 1 — implementation (spec v1.0 frozen)
 
 Done
+- Round 10 (see commit): window+sill dropped 3mm over desk, sun-dir ray
+  fan from window opening, prop sink fixes + flush hull bottoms, shelves
+  clear of frame, vertical file boxes on shelves (in-code STAFF-style),
+  pile/note outlines, horizontal ruled lines, SW v27.
 - Round 9 (see commit): WHITE_MODE (all-white world, window view kept),
   addOutline() uniform hulls on every prop + desk rim line, dust band
   behind desk middle, god-ray fan replacing the artifact shaft, neutral
