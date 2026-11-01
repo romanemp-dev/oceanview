@@ -3,6 +3,9 @@ Status
 Phase: 1 — implementation (spec v1.0 frozen)
 
 Done
+- Round 12 (see commit): hand-drawn InkPass (uniform wobbled screen-space
+  contours) replaces all hull outlines; panorama re-seated to the dropped
+  window; SW v33.
 - Round 11 (see commit): bubble icon-ride + unified tail silhouette,
   flush sill, cup/book contact lifts, per-sheet ink edges replacing box
   hulls, SW v31.
