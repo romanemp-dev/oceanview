@@ -49,6 +49,10 @@ _Last updated: 2026-10-22 (Tier 2 shipped; LAN-ready no-store server)._
 - Manga clouds, window parallax (4 depth layers; frame-box root cause
   fixed with strips), color grade pass, rest pitch -0.12. SW v23 (87e0995).
 
+### 2026-11-01 (evening)
+- White-mode art base + ink outlines + god-ray fan + dust band; colors
+  deferred to reference boards. SW v25.
+
 ## 1. What this project is
 
 Oceanview is a **local-first personal desk web app**. Its database is a normal

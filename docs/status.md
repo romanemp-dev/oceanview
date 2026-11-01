@@ -3,6 +3,10 @@ Status
 Phase: 1 — implementation (spec v1.0 frozen)
 
 Done
+- Round 9 (see commit): WHITE_MODE (all-white world, window view kept),
+  addOutline() uniform hulls on every prop + desk rim line, dust band
+  behind desk middle, god-ray fan replacing the artifact shaft, neutral
+  grade, SW v25.
 - Round 8 (87e0995): manga cloud bubbles (ink outline + tail), window
   parallax depth (pano -1.5, sky -2.4, cumulus -1.75, haze -0.95; solid
   frame box replaced with 4 strips — root cause of flat window), anime
