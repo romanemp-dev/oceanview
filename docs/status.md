@@ -3,6 +3,9 @@ Status
 Phase: 1 — implementation (spec v1.0 frozen)
 
 Done
+- Round 14 (see commit): rays along light vector (~5 o'clock), bubble
+  union contours + text-safe metrics, bubble seating (desk lower / shelf
+  higher), pano gap closed; ?bubbles=1 QA hook.
 - Round 13 (see commit): distance-normalized hull stroke widths, pot base
   ring + contact ink loops, trinket reseating; registry pruning.
 - Round 12 verdict: InkPass rejected (inked everything incl. dust,

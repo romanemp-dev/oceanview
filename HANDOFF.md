@@ -72,6 +72,10 @@ _Last updated: 2026-10-22 (Tier 2 shipped; LAN-ready no-store server)._
 - Uniform stroke hulls (per-frame distance scaling), pot base ring,
   contact ink under books, trinket reseating. SW v42.
 
+### 2026-11-02 (round 14)
+- Ray direction fix, single-silhouette bubble contours, bubble seating,
+  pano gap closed. ?bubbles=1 QA flag. SW v44.
+
 ## 1. What this project is
 
 Oceanview is a **local-first personal desk web app**. Its database is a normal
