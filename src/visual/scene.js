@@ -36,7 +36,7 @@ function makeToonGradient(values = [0.5, 0.78, 1.0]) {
 
 const TOON_RAMP = makeToonGradient();
 // Soft ink for BackSide outline hulls (example ref: thin, warm-dark, uniform).
-const OUTLINE_MAT = new THREE.MeshBasicMaterial({ color: 0x4a3d2e, side: THREE.BackSide });
+const OUTLINE_MAT = new THREE.MeshBasicMaterial({ color: 0x2e251b, side: THREE.BackSide });
 function addOutline(mesh, { thickness = 0.004 } = {}) {
   const ink = new THREE.Mesh(mesh.geometry, OUTLINE_MAT);
   ink.position.copy(mesh.position);
@@ -194,9 +194,10 @@ function drawBubbleFrame(ctx, W, icon, label, textAlpha, fullW = null) {
   const H = BUBBLE.H;
   ctx.clearRect(0, 0, fullW ?? W, H);
   // Manga speech cloud: bumpy body, opaque white, fat ink outline, tail down.
-  const cx = W / 2;
+  const full = fullW ?? W;
+  const cx = full / 2; // anchor: canvas center — sprite never shifts
   const cy = H / 2 - 6;
-  const rx = W / 2 - 16;
+  const rx = W / 2 - 16; // frame width still governs body size
   const ry = H / 2 - 22;
   ctx.save();
   ctx.shadowColor = 'rgba(42, 33, 24, 0.20)';
@@ -209,24 +210,29 @@ function drawBubbleFrame(ctx, W, icon, label, textAlpha, fullW = null) {
   ctx.fillStyle = g;
   ctx.fill();
   ctx.restore();
-  // Tail (two soft arcs) pointing down at the stack.
+  // Tail first: fill + stroke, then the body fill covers the tail's inner
+  // stroke → body and tail read as ONE silhouette (manga requirement).
   ctx.beginPath();
   ctx.moveTo(cx - 16, cy + ry - 8);
   ctx.quadraticCurveTo(cx - 8, cy + ry + 24, cx + 1, cy + ry + 30);
   ctx.quadraticCurveTo(cx + 9, cy + ry + 22, cx + 17, cy + ry - 6);
   ctx.closePath();
-  ctx.fillStyle = 'rgba(255,255,255,0.98)';
+  ctx.fillStyle = 'rgba(255,255,255,0.99)';
   ctx.fill();
-  ctx.strokeStyle = INK;
-  ctx.lineWidth = 4.5;
-  ctx.stroke();
-  // Body ink outline on top.
-  cloudPath(ctx, cx, cy, rx, ry);
   ctx.strokeStyle = INK;
   ctx.lineWidth = 5;
   ctx.stroke();
-  // Ink icon at a fixed offset from the LEFT edge (rides it while expanding).
-  drawIcon(ctx, icon, BUBBLE.pad, H / 2 - BUBBLE.icon / 2, BUBBLE.icon, INK);
+  // Body fill covers the tail stroke inside the cloud, then body outline.
+  cloudPath(ctx, cx, cy, rx, ry);
+  ctx.fillStyle = 'rgba(255,255,255,0.99)';
+  ctx.fill();
+  ctx.strokeStyle = INK;
+  ctx.lineWidth = 5;
+  ctx.stroke();
+  // Icon rides the BODY's left edge (not the canvas): stays inside the
+  // bumpy outline at any expansion width.
+  const iconX = cx - rx + BUBBLE.pad * 0.7;
+  drawIcon(ctx, icon, iconX, H / 2 - BUBBLE.icon / 2, BUBBLE.icon, INK);
   // Label fades in to the right of the icon — ink on white, like manga.
   if (label && textAlpha > 0.01) {
     ctx.save();
@@ -235,7 +241,7 @@ function drawBubbleFrame(ctx, W, icon, label, textAlpha, fullW = null) {
     ctx.textAlign = 'left';
     ctx.textBaseline = 'middle';
     ctx.fillStyle = INK;
-    ctx.fillText(label, BUBBLE.pad + BUBBLE.icon + BUBBLE.gap, H / 2 + 2, W - (BUBBLE.pad + BUBBLE.icon + BUBBLE.gap) - BUBBLE.pad);
+    ctx.fillText(label, iconX + BUBBLE.icon + BUBBLE.gap, H / 2 + 2, cx + rx - (iconX + BUBBLE.icon + BUBBLE.gap) - BUBBLE.pad);
     ctx.restore();
   }
 }
@@ -386,10 +392,11 @@ function makeStackMesh({ name, count, titles = [], overdue = false, icon = 'doc'
     curl.userData.baseRotX = curl.rotation.x;
     curl.userData.baseRotZ = curl.rotation.z;
     group.add(curl);
-    // Thin ink outline per sheet keeps the anime look without a hard box.
+    // Per-sheet ink edges: crisp LineSegments hugging THIS sheet — anime
+    // line art, no shadow box, reads at any distance.
     const edge = new THREE.LineSegments(
-      new THREE.EdgesGeometry(new THREE.BoxGeometry(A5.w, A5.t, A5.d)),
-      new THREE.LineBasicMaterial({ color: 0x2a2118, transparent: true, opacity: 0.26 }),
+      new THREE.EdgesGeometry(sheet.geometry),
+      new THREE.LineBasicMaterial({ color: 0x2e251b, transparent: true, opacity: 0.85 }),
     );
     edge.position.copy(sheet.position);
     edge.rotation.copy(sheet.rotation);
@@ -404,14 +411,6 @@ function makeStackMesh({ name, count, titles = [], overdue = false, icon = 'doc'
     seal.position.set(0.05, topY + 0.003, 0.08);
     group.add(seal);
   }
-  // Clean ink outline around the pile: one BackSide hull of the pile bounds.
-  const pileHull = new THREE.Mesh(
-    new THREE.BoxGeometry(A5.w + 0.0035, topY + 0.002, A5.d + 0.0035),
-    OUTLINE_MAT,
-  );
-  // Bottom flush with the desk: only sides+top stroke, nothing pokes below.
-  pileHull.position.y = (topY + 0.002) / 2;
-  group.add(pileHull);
   group.userData = { name, count, topY, icon };
   return group;
 }
@@ -496,7 +495,8 @@ function makeTaskSheet({ text, overdue, dir, fileName }, index, noteRegistry = n
     new THREE.BoxGeometry(A6.w, 0.0035, A6.h),
     new THREE.MeshStandardMaterial({ color: '#fdfcf8', roughness: 0.88 }),
   );
-  group.add(sheet);
+  sheet.geometry.computeBoundingBox();
+  group.add(sheet, addOutline(sheet, { thickness: 0.005 }));
   const face = new THREE.Mesh(
     new THREE.PlaneGeometry(A6.w, A6.h),
     new THREE.MeshBasicMaterial({ map: a6NoteTexture(text, overdue), toneMapped: false }),
@@ -508,12 +508,6 @@ function makeTaskSheet({ text, overdue, dir, fileName }, index, noteRegistry = n
   const row = Math.floor(index / 4);
   group.position.set(-0.39 + col * 0.26 + (col % 2) * 0.05, 0.7625, 0.12 + row * 0.22 + (col % 2) * 0.06);
   group.rotation.y = -0.12 + (Math.random() - 0.5) * 0.24;
-  const noteHull = new THREE.Mesh(
-    new THREE.BoxGeometry(A6.w + 0.003, 0.006, A6.h + 0.003),
-    OUTLINE_MAT,
-  );
-  noteHull.position.y = 0.001;
-  group.add(noteHull);
   if (dir && fileName && noteRegistry) {
     group.userData.note = { dir, fileName, text };
     group.userData.owner = group;
@@ -681,7 +675,7 @@ export function createScene({ canvas, state, onZoneClick, onStackMove, onNoteMov
     environment.add(mullion, addOutline(mullion, { thickness: 0.003 }));
     // Windowsill between the window and the desk — future trinkets area.
     const sill = new THREE.Mesh(
-      new THREE.BoxGeometry(WINDOW.w + 0.04, 0.04, 0.12),
+      new THREE.BoxGeometry(WINDOW.w + 0.12, 0.04, 0.12), // flush with frame outer edge (±0.76)
       new THREE.MeshStandardMaterial({ color: 0xfefdfa, roughness: 0.7 }),
     );
     sill.position.set(0, 0.783, -0.34); // bottom 0.763: 3mm above the desk top (0.76)
@@ -730,10 +724,10 @@ export function createScene({ canvas, state, onZoneClick, onStackMove, onNoteMov
       new THREE.BoxGeometry(0.1, 0.02, 0.07),
       toon(0x8a4b3a),
     );
-    book1.position.set(0.5, 0.813, -0.34);
+    book1.position.set(0.5, 0.8145, -0.34);
     environment.add(book1);
     const book2 = book1.clone();
-    book2.position.y = 0.838;
+    book2.position.y = 0.8395;
     book2.rotation.y = 0.2;
     environment.add(book2);
     for (const prop of [pot, leaves, book1, book2]) {
@@ -745,7 +739,7 @@ export function createScene({ canvas, state, onZoneClick, onStackMove, onNoteMov
       new THREE.CylinderGeometry(0.03, 0.026, 0.06, 18),
       toon(0xd9d2c4),
     );
-    cup.position.set(-0.58, 0.79, 0.1);
+    cup.position.set(-0.58, 0.7925, 0.1); // sits ON the desk; hull bottom visible
     cup.geometry.computeBoundingBox();
     environment.add(cup, addOutline(cup, { thickness: 0.003 }));
     const penColors = [0x2f5d8a, 0xb7791f, 0x2e343c, 0x8a4b3a];
@@ -754,7 +748,7 @@ export function createScene({ canvas, state, onZoneClick, onStackMove, onNoteMov
         new THREE.CylinderGeometry(0.004, 0.004, 0.11, 8),
         toon(color),
       );
-      pen.position.set(-0.58 + (i - 1.5) * 0.012, 0.85, 0.1 + (i % 2) * 0.01);
+      pen.position.set(-0.58 + (i - 1.5) * 0.012, 0.8525, 0.1 + (i % 2) * 0.01);
       pen.rotation.z = (i - 1.5) * 0.08;
       pen.rotation.x = i % 2 ? 0.05 : -0.04;
       pen.geometry.computeBoundingBox();
