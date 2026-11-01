@@ -35,9 +35,31 @@ function makeToonGradient(values = [0.5, 0.78, 1.0]) {
 }
 
 const TOON_RAMP = makeToonGradient();
-const OUTLINE_MAT = new THREE.MeshBasicMaterial({ color: 0x241c14, side: THREE.BackSide });
+// Soft ink for BackSide outline hulls (example ref: thin, warm-dark, uniform).
+const OUTLINE_MAT = new THREE.MeshBasicMaterial({ color: 0x4a3d2e, side: THREE.BackSide });
+function addOutline(mesh, { thickness = 0.004 } = {}) {
+  const ink = new THREE.Mesh(mesh.geometry, OUTLINE_MAT);
+  ink.position.copy(mesh.position);
+  ink.rotation.copy(mesh.rotation);
+  ink.scale.setScalar(1);
+  // Uniform visual thickness: grow along each axis by a fixed world amount.
+  ink.scale.multiply(new THREE.Vector3(
+    (mesh.geometry.boundingBox?.max.x ?? 0.5) * 2 + thickness,
+    (mesh.geometry.boundingBox?.max.y ?? 0.5) * 2 + thickness,
+    (mesh.geometry.boundingBox?.max.z ?? 0.5) * 2 + thickness,
+  ).divide(new THREE.Vector3(
+    (mesh.geometry.boundingBox?.max.x ?? 0.5) * 2,
+    (mesh.geometry.boundingBox?.max.y ?? 0.5) * 2,
+    (mesh.geometry.boundingBox?.max.z ?? 0.5) * 2,
+  )));
+  return ink;
+}
 
+// Round 9 art direction: everything white for now (colors come later from
+// reference boards) — toon() clamps any requested color to paper white.
+const WHITE_MODE = true;
 function toon(color) {
+  if (WHITE_MODE) color = '#ffffff';
   return new THREE.MeshToonMaterial({ color, gradientMap: TOON_RAMP });
 }
 
@@ -377,7 +399,7 @@ function makeStackMesh({ name, count, titles = [], overdue = false, icon = 'doc'
   if (overdue) {
     const seal = new THREE.Mesh(
       new THREE.CylinderGeometry(0.02, 0.02, 0.004, 20),
-      new THREE.MeshStandardMaterial({ color: 0xc0392b, roughness: 0.5 }),
+      new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.5 }),
     );
     seal.position.set(0.05, topY + 0.003, 0.08);
     group.add(seal);
@@ -455,7 +477,7 @@ function makeTaskSheet({ text, overdue, dir, fileName }, index, noteRegistry = n
   // A6 note lying flat on the desk, portrait orientation (vertical A6).
   const sheet = new THREE.Mesh(
     new THREE.BoxGeometry(A6.w, 0.0035, A6.h),
-    new THREE.MeshStandardMaterial({ color: overdue ? '#f6e3de' : '#fdfbf4', roughness: 0.88 }),
+    new THREE.MeshStandardMaterial({ color: '#fdfcf8', roughness: 0.88 }),
   );
   group.add(sheet);
   const face = new THREE.Mesh(
@@ -495,10 +517,11 @@ export function createScene({ canvas, state, onZoneClick, onStackMove, onNoteMov
   renderer.outputColorSpace = THREE.SRGBColorSpace;
 
   const scene = new THREE.Scene();
+  let rayGroupRef = null;
   const bgprobe = (() => { try { return new URLSearchParams(window.location.search).get('bgprobe') === '1'; } catch { return false; } })();
-  scene.background = new THREE.Color(theme === 'oceanview' ? 0xd9cbb2 : 0xf4f6f8);
+  scene.background = new THREE.Color(theme === 'oceanview' ? 0xf1ede6 : 0xf4f6f8);
   // Subtle atmospheric depth (barely visible indoors, helps the window view).
-  scene.fog = new THREE.Fog(theme === 'oceanview' ? 0xd9cbb2 : 0xf4f6f8, 6, 18);
+  scene.fog = new THREE.Fog(theme === 'oceanview' ? 0xf1ede6 : 0xf4f6f8, 6, 18);
 
   const camera = new THREE.PerspectiveCamera(55, 2, 0.02, 40);
   camera.position.set(CAMERA.x, CAMERA.y, CAMERA.z);
@@ -538,9 +561,9 @@ export function createScene({ canvas, state, onZoneClick, onStackMove, onNoteMov
   const GradeShader = {
     uniforms: {
       tDiffuse: { value: null },
-      saturation: { value: theme === 'oceanview' ? 1.22 : 1.08 },
+      saturation: { value: theme === 'oceanview' ? 1.04 : 1.08 }, // colors come later; keep whites clean
       lift: { value: new THREE.Vector3(0.012, 0.028, 0.052) },   // teal shadows
-      gain: { value: new THREE.Vector3(1.055, 1.02, 0.955) },    // warm highs
+      gain: { value: new THREE.Vector3(1.015, 1.005, 0.99) },    // near-neutral highs (white mode)
       contrast: { value: 1.09 },
     },
     vertexShader: `varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
@@ -586,16 +609,24 @@ export function createScene({ canvas, state, onZoneClick, onStackMove, onNoteMov
   // Desk surface.
   const desk = new THREE.Mesh(
     new THREE.BoxGeometry(DESK.w, DESK.h, DESK.d),
-    new THREE.MeshStandardMaterial({ color: 0xffffff, map: woodTexture(), roughness: 0.72 }),
+    new THREE.MeshStandardMaterial({ color: 0xfefdfa, roughness: 0.8 }),
   );
   desk.position.set(0, DESK.y, DESK.z);
-  scene.add(desk);
+  desk.geometry.computeBoundingBox();
+  scene.add(desk, addOutline(desk));
+  // Crisp top-rim line: anime props get one clean stroke on the facing edge.
+  const rimPts = [
+    new THREE.Vector3(-DESK.w / 2, DESK.y + DESK.h / 2 + 0.001, DESK.z - DESK.d / 2),
+    new THREE.Vector3(DESK.w / 2, DESK.y + DESK.h / 2 + 0.001, DESK.z - DESK.d / 2),
+  ];
+  const rimGeo = new THREE.BufferGeometry().setFromPoints(rimPts);
+  scene.add(new THREE.Line(rimGeo, new THREE.LineBasicMaterial({ color: 0x4a3d2e, transparent: true, opacity: 0.6 })));
 
   // Environment layer (window + panorama) — the switchable oceanview layer.
   let environment = null;
   if (theme === 'oceanview') {
     environment = new THREE.Group();
-    const frameMat = new THREE.MeshStandardMaterial({ color: 0x9c7a52, roughness: 0.6 });
+    const frameMat = new THREE.MeshStandardMaterial({ color: 0xfefdfa, roughness: 0.7 });
     const frameT = 0.06; // frame strip thickness
     const frameDepth = 0.05;
     const frameZ = WINDOW.z - 0.04;
@@ -608,7 +639,8 @@ export function createScene({ canvas, state, onZoneClick, onStackMove, onNoteMov
     for (const [w, h, x, y] of frameDefs) {
       const strip = new THREE.Mesh(new THREE.BoxGeometry(w, h, frameDepth), frameMat);
       strip.position.set(x, y, frameZ);
-      environment.add(strip);
+      strip.geometry.computeBoundingBox();
+      environment.add(strip, addOutline(strip));
     }
     const glass = new THREE.Mesh(
       new THREE.PlaneGeometry(WINDOW.w, WINDOW.h),
@@ -619,19 +651,21 @@ export function createScene({ canvas, state, onZoneClick, onStackMove, onNoteMov
     // Window mullion, like the POV reference (left sash seam).
     const mullion = new THREE.Mesh(
       new THREE.BoxGeometry(0.02, WINDOW.h, 0.02),
-      new THREE.MeshStandardMaterial({ color: 0x3a4048, roughness: 0.5, metalness: 0.2 }),
+      new THREE.MeshStandardMaterial({ color: 0xfefdfa, roughness: 0.6 }),
     );
     mullion.position.set(-0.32, WINDOW.cy, WINDOW.z + 0.02);
-    environment.add(mullion);
+    mullion.geometry.computeBoundingBox();
+    environment.add(mullion, addOutline(mullion, { thickness: 0.003 }));
     // Windowsill between the window and the desk — future trinkets area.
     const sill = new THREE.Mesh(
       new THREE.BoxGeometry(WINDOW.w + 0.04, 0.04, 0.12),
-      new THREE.MeshStandardMaterial({ color: 0x9c7a52, roughness: 0.6 }),
+      new THREE.MeshStandardMaterial({ color: 0xfefdfa, roughness: 0.7 }),
     );
     sill.position.set(0, 0.83, -0.34); // front edge flush with the desk (z = -0.28)
-    environment.add(sill);
+    sill.geometry.computeBoundingBox();
+    environment.add(sill, addOutline(sill));
     // Wall around the window (references: warm room, window pops).
-    const wallMat = new THREE.MeshStandardMaterial({ color: 0xd8cab2, roughness: 0.95 });
+    const wallMat = new THREE.MeshStandardMaterial({ color: 0xf7f5f0, roughness: 0.95 });
     const wallDefs = [
       [2.4, 0.8, 0, 2.2, -0.48], // above
       [0.95, 2.2, -1.18, 1.2, -0.48], // left
@@ -644,14 +678,16 @@ export function createScene({ canvas, state, onZoneClick, onStackMove, onNoteMov
       environment.add(wall);
     }
     // Side shelves flanking the window (D-024): less urgent stacks live here.
-    const shelfMat = new THREE.MeshStandardMaterial({ color: 0x9c7a52, roughness: 0.7 });
+    const shelfMat = new THREE.MeshStandardMaterial({ color: 0xfefdfa, roughness: 0.7 });
     for (const side of [-1, 1]) {
       const board = new THREE.Mesh(new THREE.BoxGeometry(0.44, 0.035, 0.16), shelfMat);
       board.position.set(side * 0.97, 1.18, -0.42);
-      environment.add(board);
+      board.geometry.computeBoundingBox();
+      environment.add(board, addOutline(board));
       const bracket = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.14, 0.12), shelfMat);
       bracket.position.set(side * 0.97, 1.1, -0.45);
-      environment.add(bracket);
+      bracket.geometry.computeBoundingBox();
+      environment.add(bracket, addOutline(bracket));
     }
 
     // Sill trinkets: a small plant and books (POV reference).
@@ -677,12 +713,9 @@ export function createScene({ canvas, state, onZoneClick, onStackMove, onNoteMov
     book2.position.y = 0.885;
     book2.rotation.y = 0.2;
     environment.add(book2);
-    for (const prop of [pot, book1, book2]) {
-      const ink = new THREE.Mesh(prop.geometry, OUTLINE_MAT);
-      ink.position.copy(prop.position);
-      ink.rotation.copy(prop.rotation);
-      ink.scale.setScalar(1.08);
-      environment.add(ink);
+    for (const prop of [pot, leaves, book1, book2]) {
+      prop.geometry.computeBoundingBox();
+      environment.add(addOutline(prop));
     }
     // Pen cup on the desk, left side (POV reference composition).
     const cup = new THREE.Mesh(
@@ -690,7 +723,8 @@ export function createScene({ canvas, state, onZoneClick, onStackMove, onNoteMov
       toon(0xd9d2c4),
     );
     cup.position.set(-0.58, 0.79, 0.1);
-    environment.add(cup);
+    cup.geometry.computeBoundingBox();
+    environment.add(cup, addOutline(cup, { thickness: 0.003 }));
     const penColors = [0x2f5d8a, 0xb7791f, 0x2e343c, 0x8a4b3a];
     penColors.forEach((color, i) => {
       const pen = new THREE.Mesh(
@@ -700,7 +734,8 @@ export function createScene({ canvas, state, onZoneClick, onStackMove, onNoteMov
       pen.position.set(-0.58 + (i - 1.5) * 0.012, 0.85, 0.1 + (i % 2) * 0.01);
       pen.rotation.z = (i - 1.5) * 0.08;
       pen.rotation.x = i % 2 ? 0.05 : -0.04;
-      environment.add(pen);
+      pen.geometry.computeBoundingBox();
+      environment.add(pen, addOutline(pen, { thickness: 0.0025 }));
     });
     // DEPTH LAYERS (parallax on camera yaw): sky (far) → panorama (mid) →
     // drifting cumulus (near-far) → haze veil (nearest). Each layer sits at
@@ -835,8 +870,8 @@ export function createScene({ canvas, state, onZoneClick, onStackMove, onNoteMov
     c.height = 256;
     const ctx = c.getContext('2d');
     const g = ctx.createRadialGradient(128, 128, 10, 128, 128, 128);
-    g.addColorStop(0, 'rgba(255, 236, 200, 0.38)');
-    g.addColorStop(0.55, 'rgba(255, 226, 178, 0.14)');
+    g.addColorStop(0, 'rgba(255, 238, 205, 0.5)');
+    g.addColorStop(0.55, 'rgba(255, 228, 185, 0.2)');
     g.addColorStop(1, 'rgba(255, 220, 170, 0)');
     ctx.fillStyle = g;
     ctx.fillRect(0, 0, 256, 256);
@@ -862,7 +897,9 @@ export function createScene({ canvas, state, onZoneClick, onStackMove, onNoteMov
     for (let i = 0; i < dustCount; i++) {
       positions[i * 3] = (Math.random() - 0.5) * 2.2;
       positions[i * 3 + 1] = 0.85 + Math.random() * 0.9;
-      positions[i * 3 + 2] = Math.random() * 0.95 - 0.25; // stay clear of the camera at z=0.95
+      // Round 9: motes live from the window to the desk MIDDLE (z <= 0.28);
+      // nothing drifts into the camera space (camera at z=0.95).
+      positions[i * 3 + 2] = -0.4 + Math.random() * 0.68;
       dustSeeds[i * 2] = Math.random() * Math.PI * 2;
       dustSeeds[i * 2 + 1] = 0.3 + Math.random() * 0.7;
     }
@@ -892,38 +929,77 @@ export function createScene({ canvas, state, onZoneClick, onStackMove, onNoteMov
         pos.array[i * 3] += Math.sin(t * 0.0002 + dustSeeds[i * 2]) * 0.0002;
         pos.array[i * 3 + 1] += Math.sin(t * 0.00035 + dustSeeds[i * 2]) * 0.00012 + 0.00008;
         if (pos.array[i * 3 + 1] > 1.85) pos.array[i * 3 + 1] = 0.85;
+          if (pos.array[i * 3 + 2] > 0.3) pos.array[i * 3 + 2] = -0.35;
       }
       pos.needsUpdate = true;
       dust.material.opacity = 0.35 + Math.sin(t * 0.0009) * 0.12;
     };
     scene.add(dust);
 
-    // Diagonal light shaft from the window across the desk.
-    const shaftCanvas = document.createElement('canvas');
-    shaftCanvas.width = 128;
-    shaftCanvas.height = 128;
-    const sctx = shaftCanvas.getContext('2d');
-    const sg = sctx.createLinearGradient(0, 0, 128, 128);
-    sg.addColorStop(0, 'rgba(255, 232, 190, 0.55)');
-    sg.addColorStop(0.5, 'rgba(255, 232, 190, 0.18)');
-    sg.addColorStop(1, 'rgba(255, 232, 190, 0)');
-    sctx.fillStyle = sg;
-    sctx.fillRect(0, 0, 128, 128);
-    const shaftTex = new THREE.CanvasTexture(shaftCanvas);
-    const shaft = new THREE.Mesh(
-      new THREE.PlaneGeometry(2.6, 1.9),
-      new THREE.MeshBasicMaterial({
-        map: shaftTex,
-        transparent: true,
-        opacity: theme === 'oceanview' ? 0.26 : 0,
-        depthWrite: false,
-        blending: THREE.AdditiveBlending,
-        side: THREE.DoubleSide,
-      }),
-    );
-    shaft.position.set(-0.5, 1.3, 0.05);
-    shaft.rotation.set(0, 0.35, -0.62);
-    scene.add(shaft);
+    // Sun rays (sunrays ref): a fan of parallel bright beams streaming from
+    // the upper-left of the window down across the desk. Each beam is a
+    // thin additive plane; widths vary so the fan reads organic, not CG.
+    const rayGroup = new THREE.Group();
+    const beamTex = (() => {
+      const c = document.createElement('canvas');
+      c.width = 64; c.height = 256;
+      const bctx = c.getContext('2d');
+      const bg = bctx.createLinearGradient(0, 0, 0, 256);
+      bg.addColorStop(0, 'rgba(255, 244, 214, 0.85)');
+      bg.addColorStop(0.55, 'rgba(255, 240, 205, 0.30)');
+      bg.addColorStop(1, 'rgba(255, 236, 200, 0)');
+      bctx.fillStyle = bg;
+      bctx.fillRect(0, 0, 64, 256);
+      // Soft lateral falloff so beam edges never alias.
+      const lat = bctx.createLinearGradient(0, 0, 64, 0);
+      lat.addColorStop(0, 'rgba(0,0,0,1)');
+      lat.addColorStop(0.25, 'rgba(0,0,0,0)');
+      lat.addColorStop(0.75, 'rgba(0,0,0,0)');
+      lat.addColorStop(1, 'rgba(0,0,0,1)');
+      bctx.globalCompositeOperation = 'destination-out';
+      bctx.fillStyle = lat;
+      bctx.fillRect(0, 0, 64, 256);
+      const t = new THREE.CanvasTexture(c);
+      t.colorSpace = THREE.SRGBColorSpace;
+      return t;
+    })();
+    const beamDefs = [
+      { x: -0.75, w: 0.11, o: 0.5 },
+      { x: -0.52, w: 0.06, o: 0.66 },
+      { x: -0.36, w: 0.16, o: 0.38 },
+      { x: -0.14, w: 0.08, o: 0.58 },
+      { x: 0.06, w: 0.04, o: 0.7 },
+      { x: 0.24, w: 0.1, o: 0.42 },
+      { x: 0.45, w: 0.05, o: 0.55 },
+    ];
+    for (const b of beamDefs) {
+      const beam = new THREE.Mesh(
+        new THREE.PlaneGeometry(b.w, 2.6),
+        new THREE.MeshBasicMaterial({
+          map: beamTex,
+          transparent: true,
+          opacity: b.o,
+          depthWrite: false,
+          blending: THREE.AdditiveBlending,
+          side: THREE.DoubleSide,
+          fog: false,
+        }),
+      );
+      // From the window's top-left corner diagonally down across the desk,
+      // slightly toward the viewer so beams read ON the room, not in glass.
+      beam.position.set(b.x + 0.45, 1.5, 0.16);
+      beam.rotation.set(-0.12, 0.1, -0.66);
+      rayGroup.add(beam);
+    }
+    // Whole fan breathes very slowly (living light).
+    rayGroup.userData.animate = (now) => {
+      const k = 0.85 + Math.sin(now * 0.00035) * 0.15;
+      rayGroup.children.forEach((m, i) => {
+        m.material.opacity = beamDefs[i].o * k;
+      });
+    };
+    scene.add(rayGroup);
+    rayGroupRef = rayGroup;
   }
 
   // Data-driven layers (rebuilt on state refresh).
@@ -1410,6 +1486,7 @@ export function createScene({ canvas, state, onZoneClick, onStackMove, onNoteMov
       if (dragStack) flutterCurl(now);
       dust?.userData.animate(now);
       environment?.children.forEach((o) => o.userData?.animate?.(now));
+      rayGroupRef?.userData?.animate?.(now);
       grainPass.uniforms.time.value = now * 0.001;
       composer.render();
       frameCount++;
