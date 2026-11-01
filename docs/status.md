@@ -3,6 +3,8 @@ Status
 Phase: 1 — implementation (spec v1.0 frozen)
 
 Done
+- Round 12 verdict: InkPass rejected (inked everything incl. dust,
+  wobble too strong) — reverted to hull outlines; panorama stays aligned.
 - Round 12 (see commit): hand-drawn InkPass (uniform wobbled screen-space
   contours) replaces all hull outlines; panorama re-seated to the dropped
   window; SW v33.

@@ -65,6 +65,9 @@ _Last updated: 2026-10-22 (Tier 2 shipped; LAN-ready no-store server)._
 - Hand-drawn InkPass over the whole frame (uniform ink, wobble), hulls
   retired, panorama aligned to dropped window. SW v33.
 
+### 2026-11-02 (round 12 verdict)
+- InkPass reverted; hull outlines restored. Panorama alignment kept. SW v34.
+
 ## 1. What this project is
 
 Oceanview is a **local-first personal desk web app**. Its database is a normal
