@@ -57,6 +57,10 @@ _Last updated: 2026-10-22 (Tier 2 shipped; LAN-ready no-store server)._
 - Window drop, sun-direction rays, contact fixes, file boxes on shelves,
   outlines + ruled sheets. SW v27.
 
+### 2026-11-01 (late night, round 11)
+- Bubble icon/tail fixes, flush sill, contact lifts, per-sheet ink
+  outlines. SW v31.
+
 ## 1. What this project is
 
 Oceanview is a **local-first personal desk web app**. Its database is a normal

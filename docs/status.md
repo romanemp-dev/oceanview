@@ -3,6 +3,9 @@ Status
 Phase: 1 — implementation (spec v1.0 frozen)
 
 Done
+- Round 11 (see commit): bubble icon-ride + unified tail silhouette,
+  flush sill, cup/book contact lifts, per-sheet ink edges replacing box
+  hulls, SW v31.
 - Round 10 (see commit): window+sill dropped 3mm over desk, sun-dir ray
   fan from window opening, prop sink fixes + flush hull bottoms, shelves
   clear of frame, vertical file boxes on shelves (in-code STAFF-style),
