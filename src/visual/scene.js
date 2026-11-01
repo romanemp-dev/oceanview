@@ -37,16 +37,31 @@ function makeToonGradient(values = [0.5, 0.78, 1.0]) {
 const TOON_RAMP = makeToonGradient();
 // Soft ink for BackSide outline hulls (example ref: thin, warm-dark, uniform).
 const OUTLINE_MAT = new THREE.MeshBasicMaterial({ color: 0x2e251b, side: THREE.BackSide });
+// Hand-drawn contact line: jittered ellipse loop lying on a surface under
+// an object — sells "seated" contact when hull bottoms self-occlude.
+function contactInk({ x = 0, y, z, rx, rz, opacity = 0.65 }) {
+  const pts = [];
+  const N = 44;
+  for (let i = 0; i < N; i++) {
+    const a = (i / N) * Math.PI * 2;
+    // deterministic wobble: radius breathes around the footprint
+    const j = 1 + (Math.sin(a * 3.7 + x * 41.0) * 0.5 + Math.sin(a * 7.3 + z * 29.0) * 0.5) * 0.06;
+    pts.push(new THREE.Vector3(x + Math.cos(a) * rx * j, y, z + Math.sin(a) * rz * j));
+  }
+  const geo = new THREE.BufferGeometry().setFromPoints(pts);
+  return new THREE.LineLoop(geo, new THREE.LineBasicMaterial({ color: 0x2e251b, transparent: true, opacity }));
+}
+
+const OUTLINE_REGISTRY = []; // {ink, base} — rescaled per-frame for uniform screen width
+const OUTLINE_REF_DIST = 1.35; // camera->desk distance the default 4mm targets
+
 function addOutline(mesh, { thickness = 0.004 } = {}) {
-  // Round 12: outlines render via the hand-drawn InkPass (screen-space,
-  // uniform width, wobbling like pencil ink). Meshes just tag themselves;
-  // the mesh-level hull stays for no-post fallbacks (SW cache off).
   const ink = new THREE.Mesh(mesh.geometry, OUTLINE_MAT);
   ink.position.copy(mesh.position);
   ink.rotation.copy(mesh.rotation);
   ink.scale.setScalar(1);
   // Uniform visual thickness: grow along each axis by a fixed world amount.
-  ink.scale.multiply(new THREE.Vector3(
+  const base = new THREE.Vector3(
     (mesh.geometry.boundingBox?.max.x ?? 0.5) * 2 + thickness,
     (mesh.geometry.boundingBox?.max.y ?? 0.5) * 2 + thickness,
     (mesh.geometry.boundingBox?.max.z ?? 0.5) * 2 + thickness,
@@ -54,8 +69,28 @@ function addOutline(mesh, { thickness = 0.004 } = {}) {
     (mesh.geometry.boundingBox?.max.x ?? 0.5) * 2,
     (mesh.geometry.boundingBox?.max.y ?? 0.5) * 2,
     (mesh.geometry.boundingBox?.max.z ?? 0.5) * 2,
-  )));
+  ));
+  ink.scale.copy(base);
+  OUTLINE_REGISTRY.push({ ink, base });
   return ink;
+}
+
+// Per-frame: keep every hull's screen thickness constant regardless of its
+// distance to the camera — far objects thin their world hull, near ones
+// fatten it, so strokes read hand-inked-uniform across the frame.
+function updateOutlineScale(camera) {
+  const v = new THREE.Vector3();
+  for (const { ink, base } of OUTLINE_REGISTRY) {
+    ink.getWorldPosition(v);
+    const dist = v.distanceTo(camera.position);
+    // hull thickness scales linearly with distance: world = px * dist
+    const k = dist / OUTLINE_REF_DIST;
+    ink.scale.set(
+      1 + (base.x - 1) * k,
+      1 + (base.y - 1) * k,
+      1 + (base.z - 1) * k,
+    );
+  }
 }
 
 // Round 9 art direction: everything white for now (colors come later from
@@ -716,28 +751,41 @@ export function createScene({ canvas, state, onZoneClick, onStackMove, onNoteMov
       new THREE.CylinderGeometry(0.035, 0.028, 0.06, 16),
       toon(0xb5643c),
     );
-    pot.position.set(-0.55, 0.833, -0.34);
+    pot.position.set(-0.55, 0.8335, -0.34); // bottom tangent to the sill top
     environment.add(pot);
     const leaves = new THREE.Mesh(
       new THREE.SphereGeometry(0.055, 16, 12),
       toon(0x4f7a4a),
     );
-    leaves.position.set(-0.55, 0.903, -0.34);
+    leaves.position.set(-0.55, 0.906, -0.34);
     environment.add(leaves);
     const book1 = new THREE.Mesh(
       new THREE.BoxGeometry(0.1, 0.02, 0.07),
       toon(0x8a4b3a),
     );
-    book1.position.set(0.5, 0.8145, -0.34);
+    book1.position.set(0.5, 0.8145, -0.34); // hull bottom arc lands on the sill (cup recipe)
     environment.add(book1);
     const book2 = book1.clone();
-    book2.position.y = 0.8395;
+    book2.position.y = 0.8375; // hull arcs of both books touch
     book2.rotation.y = 0.2;
     environment.add(book2);
     for (const prop of [pot, leaves, book1, book2]) {
       prop.geometry.computeBoundingBox();
-      environment.add(addOutline(prop));
+      environment.add(addOutline(prop, { thickness: 0.003 }));
     }
+    // Ground contact ink under the sill trinkets (hull bottoms self-occlude
+    // at grazing angles — a drawn line reads reliably, like anime ground).
+    environment.add(contactInk({ x: 0.5, y: 0.8036, z: -0.34, rx: 0.054, rz: 0.038 }));
+    environment.add(contactInk({ x: 0.5, y: 0.8266, z: -0.34, rx: 0.054, rz: 0.038 }));
+    // Pot base ring: torus half-sunk at the foot — grazing angles kill flat
+    // ground lines, a 3D ring keeps the manga contact mark visible.
+    const potRing = new THREE.Mesh(
+      new THREE.TorusGeometry(0.029, 0.0013, 8, 32),
+      new THREE.MeshBasicMaterial({ color: 0x2e251b }),
+    );
+    potRing.rotation.x = -Math.PI / 2;
+    potRing.position.set(-0.55, 0.8042, -0.34);
+    environment.add(potRing);
     // Pen cup on the desk, left side (POV reference composition).
     const cup = new THREE.Mesh(
       new THREE.CylinderGeometry(0.03, 0.026, 0.06, 18),
@@ -1240,6 +1288,9 @@ export function createScene({ canvas, state, onZoneClick, onStackMove, onNoteMov
 
   function layoutZone(deskState) {
     zoneLayer.clear();
+    for (let i = OUTLINE_REGISTRY.length - 1; i >= 0; i--) {
+      if (!OUTLINE_REGISTRY[i].ink.parent) OUTLINE_REGISTRY.splice(i, 1); // notes re-render: drop stale hulls
+    }
     noteMeshes = [];
     const all = collectTodayTasksLocal(deskState);
     const visible = all.slice(0, 5); // D-021: limit 5
@@ -1569,6 +1620,7 @@ export function createScene({ canvas, state, onZoneClick, onStackMove, onNoteMov
       dust?.userData.animate(now);
       environment?.children.forEach((o) => o.userData?.animate?.(now));
       rayGroupRef?.userData?.animate?.(now);
+      updateOutlineScale(camera); // uniform screen-space stroke width
       grainPass.uniforms.time.value = now * 0.001;
       composer.render();
       frameCount++;
