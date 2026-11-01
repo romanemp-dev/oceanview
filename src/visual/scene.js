@@ -206,21 +206,24 @@ function drawIcon(ctx, name, x, y, size, color = 'rgba(255,255,255,0.95)') {
 
 // Manga cloud outline: bumpy closed curve around an ellipse + a little tail
 // pointing down (speech-bubble tail toward the stack).
-function cloudPath(ctx, cx, cy, rx, ry, bumps = 9) {
+function cloudPath2D(cx, cy, rx, ry, bumps = 9) {
+  // Gentle bumps (0.93..1.07): organic edge that never dips far enough to
+  // bite into the icon or label (the old 0.84..1.16 did — text overflowed).
   const pts = [];
   for (let i = 0; i < bumps; i++) {
     const a = (i / bumps) * Math.PI * 2 - Math.PI / 2;
-    const rr = 0.84 + seededRandom(`bump${i}${Math.round(rx)}${Math.round(ry)}`)() * 0.32;
+    const rr = 0.93 + seededRandom(`bump${i}${Math.round(rx)}${Math.round(ry)}`)() * 0.14;
     pts.push({ x: cx + Math.cos(a) * rx * rr, y: cy + Math.sin(a) * ry * rr });
   }
-  ctx.beginPath();
-  ctx.moveTo((pts[0].x + pts[1].x) / 2, (pts[0].y + pts[1].y) / 2);
+  const path = new Path2D();
+  path.moveTo((pts[0].x + pts[1].x) / 2, (pts[0].y + pts[1].y) / 2);
   for (let i = 1; i <= bumps; i++) {
     const p = pts[i % bumps];
     const n = pts[(i + 1) % bumps];
-    ctx.quadraticCurveTo(p.x, p.y, (p.x + n.x) / 2, (p.y + n.y) / 2);
+    path.quadraticCurveTo(p.x, p.y, (p.x + n.x) / 2, (p.y + n.y) / 2);
   }
-  ctx.closePath();
+  path.closePath();
+  return path;
 }
 
 // Matte-glass rectangle: soft white fill, double hairline stroke, faint
@@ -237,41 +240,36 @@ function drawBubbleFrame(ctx, W, icon, label, textAlpha, fullW = null) {
   const cy = H / 2 - 6;
   const rx = W / 2 - 16; // frame width still governs body size
   const ry = H / 2 - 22;
+  // Body + tail as ONE Path2D union: fat stroke first, white fill over it —
+  // every inner seam (tail/body junction) is covered, only the outer half
+  // of the stroke survives as one continuous manga contour.
+  const body = cloudPath2D(cx, cy, rx, ry);
+  const tail = new Path2D();
+  tail.moveTo(cx - 16, cy + ry - 8);
+  tail.quadraticCurveTo(cx - 8, cy + ry + 24, cx + 1, cy + ry + 26);
+  tail.quadraticCurveTo(cx + 9, cy + ry + 20, cx + 17, cy + ry - 6);
+  tail.closePath();
+  const union = new Path2D();
+  union.addPath(body);
+  union.addPath(tail);
   ctx.save();
   ctx.shadowColor = 'rgba(42, 33, 24, 0.20)';
   ctx.shadowBlur = 14;
   ctx.shadowOffsetY = 4;
-  cloudPath(ctx, cx, cy, rx, ry);
-  const g = ctx.createLinearGradient(0, cy - ry, 0, cy + ry);
-  g.addColorStop(0, 'rgba(255,255,255,0.99)');
-  g.addColorStop(1, 'rgba(240,244,248,0.96)');
-  ctx.fillStyle = g;
-  ctx.fill();
+  ctx.fillStyle = 'rgba(255,255,255,0.99)';
+  ctx.fill(union);
   ctx.restore();
-  // Tail first: fill + stroke, then the body fill covers the tail's inner
-  // stroke → body and tail read as ONE silhouette (manga requirement).
-  ctx.beginPath();
-  ctx.moveTo(cx - 16, cy + ry - 8);
-  ctx.quadraticCurveTo(cx - 8, cy + ry + 24, cx + 1, cy + ry + 30);
-  ctx.quadraticCurveTo(cx + 9, cy + ry + 22, cx + 17, cy + ry - 6);
-  ctx.closePath();
-  ctx.fillStyle = 'rgba(255,255,255,0.99)';
-  ctx.fill();
+  ctx.lineWidth = 10;
   ctx.strokeStyle = INK;
-  ctx.lineWidth = 5;
-  ctx.stroke();
-  // Body fill covers the tail stroke inside the cloud, then body outline.
-  cloudPath(ctx, cx, cy, rx, ry);
+  ctx.stroke(union);
   ctx.fillStyle = 'rgba(255,255,255,0.99)';
-  ctx.fill();
-  ctx.strokeStyle = INK;
-  ctx.lineWidth = 5;
-  ctx.stroke();
+  ctx.fill(union);
   // Icon rides the BODY's left edge (not the canvas): stays inside the
   // bumpy outline at any expansion width.
   const iconX = cx - rx + BUBBLE.pad * 0.7;
   drawIcon(ctx, icon, iconX, H / 2 - BUBBLE.icon / 2, BUBBLE.icon, INK);
   // Label fades in to the right of the icon — ink on white, like manga.
+  // Right limit stays inside the bumpy boundary's worst inward dip (0.86).
   if (label && textAlpha > 0.01) {
     ctx.save();
     ctx.globalAlpha = Math.min(Math.max(textAlpha, 0), 1);
@@ -279,7 +277,9 @@ function drawBubbleFrame(ctx, W, icon, label, textAlpha, fullW = null) {
     ctx.textAlign = 'left';
     ctx.textBaseline = 'middle';
     ctx.fillStyle = INK;
-    ctx.fillText(label, iconX + BUBBLE.icon + BUBBLE.gap, H / 2 + 2, cx + rx - (iconX + BUBBLE.icon + BUBBLE.gap) - BUBBLE.pad);
+    const labelX = iconX + BUBBLE.icon + BUBBLE.gap;
+    const limitR = cx + rx * 0.86 - BUBBLE.pad * 0.6;
+    ctx.fillText(label, labelX, cy + 2, Math.max(limitR - labelX, 10));
     ctx.restore();
   }
 }
@@ -301,9 +301,9 @@ function makeBubble({ name, icon = 'doc' }) {
   const WORLD_H = 0.057; // 1.5x smaller than v1
   const label = name.length > 18 ? `${name.slice(0, 17)}…` : name;
   const W0 = BUBBLE.pad * 2 + BUBBLE.icon;
-  ctx.font = `300 ${BUBBLE.font}px -apple-system, sans-serif`;
+  ctx.font = `500 ${BUBBLE.font}px 'Helvetica Neue', Helvetica, Arial, sans-serif`;
   const textW = ctx.measureText(label).width;
-  const W1 = Math.ceil(W0 + BUBBLE.gap + textW + BUBBLE.pad);
+  const W1 = Math.ceil(W0 + BUBBLE.gap + textW + BUBBLE.pad + 30); // +30: bump-safe slack
   let shownW = W0;
   let anim = null;
   // Canvas stays at full expanded width (W1) for the sprite's whole life:
@@ -907,7 +907,7 @@ export function createScene({ canvas, state, onZoneClick, onStackMove, onNoteMov
       new THREE.PlaneGeometry(WINDOW.w * 1.9, WINDOW.h * 1.9),
       new THREE.MeshBasicMaterial(probe ? { color: 0xffff00 } : { map: panoPlaceholder }),
     );
-    view.position.set(0, WINDOW.cy - 0.02, -1.5); // dropped with the window
+    view.position.set(0, WINDOW.cy - 0.10, -1.5); // bottom edge hides behind the sill — no gray gap
     if (!noview) environment.add(view);
 
     // A0: real panorama from the user's reference (assets/panorama/bay-view.jpg).
@@ -1054,12 +1054,18 @@ export function createScene({ canvas, state, onZoneClick, onStackMove, onNoteMov
           fog: false,
         }),
       );
-      // Anchored INSIDE the window opening (top edge), streaming along the
-      // sun vector: sun sits upper-left behind the window, so beams enter
-      // tilting from window-left-top toward desk-right-front.
-      const entryY = WINDOW.cy + WINDOW.h / 2 - 0.06;
-      beam.position.set(b.x * 0.55 - 0.1, entryY - 0.55, WINDOW.z + 0.28);
-      beam.rotation.set(0.1, 0.05, -0.48);
+      // Enter at the window's top edge, stream toward ~5 o'clock: the plane
+      // is oriented EXACTLY along the light vector (quaternion +Y -> -dir),
+      // so its top edge sits at the entry point and its bottom dives into
+      // the desk — nothing pokes above the window (no more ceiling rays).
+      const ex = b.x * 0.55 - 0.1; // entry x inside the window opening
+      const ey = WINDOW.cy + WINDOW.h / 2 - 0.05; // entry y (window top)
+      const ez = WINDOW.z + 0.06; // just inside the glass
+      const dir = new THREE.Vector3(0.41, -0.78, 0.51).normalize(); // ~5 o'clock
+      const L = 1.35;
+      beam.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir.clone().negate());
+      beam.position.set(ex, ey, ez).addScaledVector(dir, L / 2);
+      beam.scale.y = L / 2.6; // plane was 2.6 tall
       rayGroup.add(beam);
     }
     // Whole fan breathes very slowly (living light).
@@ -1200,7 +1206,7 @@ export function createScene({ canvas, state, onZoneClick, onStackMove, onNoteMov
       stackMeshes.push(mesh);
       const bubble = makeBubble({ name: entry.name, icon: entry.icon ?? 'doc' });
       bubble.userData.owner = mesh;
-      bubble.position.set(pos.x, DESK.y + DESK.h / 2 + 0.21, pos.z);
+      bubble.position.set(pos.x, DESK.y + DESK.h / 2 + 0.16, pos.z); // hugs the stack
       bubbleLayer.add(bubble);
       bubbles.push(bubble);
     };
@@ -1220,11 +1226,15 @@ export function createScene({ canvas, state, onZoneClick, onStackMove, onNoteMov
       stackMeshes.push(box);
       const bubble = makeBubble({ name: entry.name, icon: entry.icon ?? 'doc' });
       bubble.userData.owner = box;
-      bubble.position.set(box.position.x, box.position.y + 0.155, box.position.z - 0.02);
+      bubble.position.set(box.position.x, box.position.y + 0.30, box.position.z - 0.02); // floats over the box
       bubbleLayer.add(bubble);
       bubbles.push(bubble);
     });
     stacksBuilt = true;
+    // QA hook (?bubbles=1): force-expand every bubble to inspect contours.
+    if (new URLSearchParams(window.location.search).get('bubbles') === '1') {
+      bubbles.forEach((b) => b.userData.setExpanded(true));
+    }
 
     // Vertical file box (round 9 item 5): cardboard-white upright box,
     // label plate with ruled lines, string-tie button on the front.
