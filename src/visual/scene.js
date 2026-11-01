@@ -41,11 +41,21 @@ function addOutline(mesh, { thickness = 0.004 } = {}) {
   // Round 12: outlines render via the hand-drawn InkPass (screen-space,
   // uniform width, wobbling like pencil ink). Meshes just tag themselves;
   // the mesh-level hull stays for no-post fallbacks (SW cache off).
-  mesh.userData.inkMark = true;
-  // Round 12: hulls retired — the InkPass draws every contour in screen
-  // space with uniform hand-drawn strokes. Return an empty group so the
-  // many `add(mesh, addOutline(mesh))` call sites stay valid.
-  return new THREE.Group();
+  const ink = new THREE.Mesh(mesh.geometry, OUTLINE_MAT);
+  ink.position.copy(mesh.position);
+  ink.rotation.copy(mesh.rotation);
+  ink.scale.setScalar(1);
+  // Uniform visual thickness: grow along each axis by a fixed world amount.
+  ink.scale.multiply(new THREE.Vector3(
+    (mesh.geometry.boundingBox?.max.x ?? 0.5) * 2 + thickness,
+    (mesh.geometry.boundingBox?.max.y ?? 0.5) * 2 + thickness,
+    (mesh.geometry.boundingBox?.max.z ?? 0.5) * 2 + thickness,
+  ).divide(new THREE.Vector3(
+    (mesh.geometry.boundingBox?.max.x ?? 0.5) * 2,
+    (mesh.geometry.boundingBox?.max.y ?? 0.5) * 2,
+    (mesh.geometry.boundingBox?.max.z ?? 0.5) * 2,
+  )));
+  return ink;
 }
 
 // Round 9 art direction: everything white for now (colors come later from
@@ -565,58 +575,6 @@ export function createScene({ canvas, state, onZoneClick, onStackMove, onNoteMov
     ].join('\n'),
   };
 
-  // Hand-drawn ink pass (round 12): sobel edges over the color buffer with
-  // wobbled sampling — strokes read as pencil-ink, uniform width, not CG.
-  const InkShader = {
-    uniforms: {
-      tDiffuse: { value: null },
-      texel: { value: new THREE.Vector2(1 / 1440, 1 / 900) },
-      inkColor: { value: new THREE.Color(0x2e251b) },
-      threshold: { value: 0.12 },   // color delta that counts as an edge
-      strength: { value: 0.82 },    // ink opacity
-      wobble: { value: 0.9 },       // hand-drawn jitter amount
-      time: { value: 0 },
-    },
-    vertexShader: 'varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
-    fragmentShader: `
-      uniform sampler2D tDiffuse;
-      uniform vec2 texel;
-      uniform vec3 inkColor;
-      uniform float threshold;
-      uniform float strength;
-      uniform float wobble;
-      uniform float time;
-      varying vec2 vUv;
-      float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
-      void main() {
-        // Hand wobble: each pixel samples neighbors along a slowly varying
-        // jitter field — lines breathe like drawn strokes, never CG-perfect.
-        vec2 j = vec2(
-          hash(floor(vUv * vec2(640.0, 360.0)) + floor(time) * 0.01) - 0.5,
-          hash(floor(vUv * vec2(640.0, 360.0)) + 7.3 - floor(time) * 0.01) - 0.5
-        ) * texel * wobble * 2.0;
-        vec3 c  = texture2D(tDiffuse, vUv).rgb;
-        // 4-neighbor sobel on luminance with jittered taps.
-        vec3 cl = texture2D(tDiffuse, vUv + vec2(-texel.x, j.y) * 1.6).rgb;
-        vec3 cr = texture2D(tDiffuse, vUv + vec2( texel.x, -j.y) * 1.6).rgb;
-        vec3 ct = texture2D(tDiffuse, vUv + vec2(j.x,  texel.y) * 1.6).rgb;
-        vec3 cb = texture2D(tDiffuse, vUv + vec2(-j.x, -texel.y) * 1.6).rgb;
-        float l  = dot(c,  vec3(0.299, 0.587, 0.114));
-        float ll = dot(cl, vec3(0.299, 0.587, 0.114));
-        float lr = dot(cr, vec3(0.299, 0.587, 0.114));
-        float lt = dot(ct, vec3(0.299, 0.587, 0.114));
-        float lb = dot(cb, vec3(0.299, 0.587, 0.114));
-        float gx = ll - lr;
-        float gy = lt - lb;
-        float g = length(vec2(gx, gy));
-        float edge = smoothstep(threshold, threshold + 0.08, g);
-        // Ink line: darken where edges fire; keep paper texture elsewhere.
-        vec3 col = mix(c, inkColor, edge * strength);
-        gl_FragColor = vec4(col, 1.0);
-      }`,
-  };
-  const inkPass = new ShaderPass(InkShader);
-  composer.addPass(inkPass);
   const grainPass = new ShaderPass(GrainShader);
 
   // Color grade (Tier 2): anime film look — richer saturation, lifted teal
@@ -1612,7 +1570,6 @@ export function createScene({ canvas, state, onZoneClick, onStackMove, onNoteMov
       environment?.children.forEach((o) => o.userData?.animate?.(now));
       rayGroupRef?.userData?.animate?.(now);
       grainPass.uniforms.time.value = now * 0.001;
-      if (inkPass?.uniforms?.time) inkPass.uniforms.time.value = Math.floor(now / 120) * 0.12;
       composer.render();
       frameCount++;
     } catch (e) {
@@ -1632,7 +1589,6 @@ export function createScene({ canvas, state, onZoneClick, onStackMove, onNoteMov
     const h = canvas.clientHeight || window.innerHeight;
     renderer.setSize(w, h, false);
     composer.setSize(w, h);
-    if (inkPass?.uniforms?.texel) inkPass.uniforms.texel.value.set(1 / w, 1 / h);
     bloomPass.setSize(Math.max(w * (isMobile ? 0.5 : 1), 1), Math.max(h * (isMobile ? 0.5 : 1), 1));
     camera.aspect = w / h;
     camera.updateProjectionMatrix();
