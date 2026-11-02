@@ -99,6 +99,9 @@ _Last updated: 2026-10-22 (Tier 2 shipped; LAN-ready no-store server)._
 - Two-phase arc: pinned eye until mid (no desk dive), then glide+rise;
   hover 1.85. SW v50.
 
+### 2026-11-03 (arc v4)
+- Phase 2 inverted: rise early / glide late. ?pitch=deg dev pin. SW v52.
+
 ## 1. What this project is
 
 Oceanview is a **local-first personal desk web app**. Its database is a normal

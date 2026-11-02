@@ -3,6 +3,8 @@ Status
 Phase: 1 — implementation (spec v1.0 frozen)
 
 Done
+- Arc v4 (see commit): phase 2 bent the other way (rise early, glide
+  late); ?pitch=deg dev pin works without ?cam=.
 - Arc v3 (see commit): phase 1 (rest->mid) pins the eye (rotation only,
   no dive), phase 2 (mid->desk) glides+rises; hover lowered to 1.85.
 - Arc v2 (see commit): dead zone 0.26; forward-glide early / rise late
