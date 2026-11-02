@@ -11,6 +11,7 @@ export function createCameraRig({ camera, domElement, config = {} }) {
     pitchUp: config.pitchUp ?? 0.02, // rad, looking straight into the window
     pitchRest: config.pitchRest ?? -0.12, // rad, resting POV: window + desk balance
     pitchDown: config.pitchDown ?? -1.52, // rad, near-vertical top-down on the desk
+    pitchMid: config.pitchMid ?? -0.82, // rad, phase split: rotation-only until here
     deadZone: config.deadZone ?? 0.26, // large center band: camera holds still
     lerp: config.lerp ?? 0.05,
     driftMs: config.driftMs ?? 1500,
@@ -18,7 +19,7 @@ export function createCameraRig({ camera, domElement, config = {} }) {
     poseX: config.poseX ?? 0,
     baseY: config.baseY ?? 1.1, // slightly lowered eye for the window view
     baseZ: config.baseZ ?? 0.95,
-    hoverY: config.hoverY ?? 2.0, // desk top 0.76 + framing margin (FOV 55)
+    hoverY: config.hoverY ?? 1.85, // desk top 0.76 + minimal framing margin (FOV 55)
     hoverZ: config.hoverZ ?? 0.28, // desk center
     ...config,
   };
@@ -101,20 +102,23 @@ export function createCameraRig({ camera, domElement, config = {} }) {
     state.pitch += (state.targetPitch - state.pitch) * cfg.lerp;
     euler.set(state.pitch, state.yaw, 0);
     camera.quaternion.setFromEuler(euler).multiply(baseQuat);
-    // Arc position: u = 0 at/above the rest POV (static eye), u = 1 at the
-    // bottom stop (hover over the desk). Shape per art direction: the camera
-    // glides FORWARD early (ease-out on Z) while staying LOW, the pitch does
-    // the talking (window shrinks to <=25% by mid-sweep), and the RISE is
-    // back-loaded (ease-in on Y) — only the desk stop gains the full height
-    // that frames the whole desk top-down.
-    const u = Math.min(Math.max((cfg.pitchRest - state.pitch) / (cfg.pitchRest - cfg.pitchDown), 0), 1);
-    const riseY = u * u;
-    const glideZ = 1 - Math.pow(1 - u, 1.5);
-    camera.position.set(
-      cfg.poseX,
-      cfg.baseY + (cfg.hoverY - cfg.baseY) * riseY,
-      cfg.baseZ + (cfg.hoverZ - cfg.baseZ) * glideZ,
-    );
+    // Two-phase arc per art direction. Phase 1 (rest -> mid): the eye is
+    // PINNED at the rest position — the pitch alone does the talking, the
+    // camera never dives onto the desk. Phase 2 (mid -> desk): only now the
+    // camera glides forward over the desk (ease-out on Z) and rises to the
+    // hover height late (ease-in on Y), framing the whole desk top-down.
+    if (state.pitch >= cfg.pitchMid) {
+      camera.position.set(cfg.poseX, cfg.baseY, cfg.baseZ);
+    } else {
+      const v = Math.min(Math.max((cfg.pitchMid - state.pitch) / (cfg.pitchMid - cfg.pitchDown), 0), 1);
+      const riseY = v * v;
+      const glideZ = 1 - Math.pow(1 - v, 1.4);
+      camera.position.set(
+        cfg.poseX,
+        cfg.baseY + (cfg.hoverY - cfg.baseY) * riseY,
+        cfg.baseZ + (cfg.hoverZ - cfg.baseZ) * glideZ,
+      );
+    }
   }
 
   function attach() {
