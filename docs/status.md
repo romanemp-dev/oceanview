@@ -3,6 +3,9 @@ Status
 Phase: 1 — implementation (spec v1.0 frozen)
 
 Done
+- Free placement (see commit): snap grid removed entirely; drop stays
+  put unless inside another item's 1.75 cm occupancy radius, then slides
+  just beyond it (resolveFreeSpot). Decision superscedes the grid rounds.
 - Round 15 fix (see commit): bubble offsets moved into userData (the
   animate loop used to clobber seating per-frame); occupancy cell 1.75 cm.
 - Round 15 (see commit): 4x finer snap grid (1.75 cm), landscape bubble

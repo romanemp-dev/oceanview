@@ -84,6 +84,9 @@ _Last updated: 2026-10-22 (Tier 2 shipped; LAN-ready no-store server)._
 - Bubble follow-offset via userData.offset (animate no longer clobbers
   seating); occupancy radius = 1.75 cm per art direction. SW v46.
 
+### 2026-11-02 (free placement)
+- Grid removed; resolveFreeSpot push-out (D-025). SW v47.
+
 ## 1. What this project is
 
 Oceanview is a **local-first personal desk web app**. Its database is a normal

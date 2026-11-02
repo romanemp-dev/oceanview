@@ -162,3 +162,10 @@ functional items (search/today include them).
 Consequences: desk stays calm at any stack count; shelf visibility depends on
 camera yaw (glance sideways); config.json remains the single source for stack
 metadata; the art direction gains a natural place for reference material.
+
+## D-025 — Free placement with occupancy push-out (2026-11-02)
+Grid snapping for desk items removed. A dropped stack/note keeps its exact
+drop point; only overlaps with an existing item's occupancy radius
+(OCCUPANCY = 0.0175 m, pad 0.004 m) push the item just beyond the radius
+along the approach direction (resolveFreeSpot, <=12 iterations, desk-bounds
+clamp). Persisted positions are the raw drop coordinates.
