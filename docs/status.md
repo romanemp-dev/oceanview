@@ -3,6 +3,8 @@ Status
 Phase: 1 — implementation (spec v1.0 frozen)
 
 Done
+- Arc v3 (see commit): phase 1 (rest->mid) pins the eye (rotation only,
+  no dive), phase 2 (mid->desk) glides+rises; hover lowered to 1.85.
 - Arc v2 (see commit): dead zone 0.26; forward-glide early / rise late
   (mid = low, window <=25%), desk stop unchanged. Awaiting verdict.
 - Arc camera (see commit): bottom stop hovers over the desk top-down

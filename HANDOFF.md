@@ -95,6 +95,10 @@ _Last updated: 2026-10-22 (Tier 2 shipped; LAN-ready no-store server)._
 - Dead zone 0.26; arc: forward early, rise late (mid low, window
   <=25% frame). SW v49.
 
+### 2026-11-03 (arc v3)
+- Two-phase arc: pinned eye until mid (no desk dive), then glide+rise;
+  hover 1.85. SW v50.
+
 ## 1. What this project is
 
 Oceanview is a **local-first personal desk web app**. Its database is a normal
