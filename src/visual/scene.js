@@ -189,7 +189,9 @@ const ICONS = {
   book: 'M5 4h6a2 2 0 0 1 2 2v14a2 2 0 0 0-2-2H5z M19 4h-6a2 2 0 0 0-2 2v14a2 2 0 0 1 2-2h6z',
 };
 
-const BUBBLE = { H: 256, pad: 36, icon: 120, gap: 26, font: 52, radius: 30 };
+// Landscape bubble: H < collapsed width (pad*2+icon), so even the
+// icon-only state reads as a wide manga oval, never a vertical egg.
+const BUBBLE = { H: 176, pad: 72, icon: 88, gap: 24, font: 44, radius: 30 };
 
 function drawIcon(ctx, name, x, y, size, color = 'rgba(255,255,255,0.95)') {
   const path = new Path2D(ICONS[name] ?? ICONS.doc);
@@ -246,8 +248,8 @@ function drawBubbleFrame(ctx, W, icon, label, textAlpha, fullW = null) {
   const body = cloudPath2D(cx, cy, rx, ry);
   const tail = new Path2D();
   tail.moveTo(cx - 16, cy + ry - 8);
-  tail.quadraticCurveTo(cx - 8, cy + ry + 24, cx + 1, cy + ry + 26);
-  tail.quadraticCurveTo(cx + 9, cy + ry + 20, cx + 17, cy + ry - 6);
+  tail.quadraticCurveTo(cx - 8, cy + ry + 18, cx + 1, cy + ry + 20);
+  tail.quadraticCurveTo(cx + 9, cy + ry + 15, cx + 17, cy + ry - 6);
   tail.closePath();
   const union = new Path2D();
   union.addPath(body);
@@ -456,16 +458,19 @@ function makeStackMesh({ name, count, titles = [], overdue = false, icon = 'doc'
 const A6 = { w: 0.084, h: 0.118 }; // 20% smaller A6
 let curlGeo = null; // shared quarter-cylinder wedge for sheet corner curls
 
-// Invisible snap grid (item 4): stacks/notes land on 7 cm cells so piles
-// never overlap and the desk keeps a lived-in but tidy rhythm.
-const GRID = 0.07;
+// Invisible snap grid: stacks/notes land on 1.75 cm cells (4x finer than
+// the old 7 cm grid) for granular placement. Occupancy keeps the OLD 6.3 cm
+// radius in absolute terms, so piles still never overlap; the free-cell
+// spiral searches the same 28 cm reach (16 x 1.75 cm).
+const GRID = 0.0175;
+const CELL = 0.063; // occupancy radius (absolute, from the 7 cm era)
 const snapGrid = (v) => Math.round(v / GRID) * GRID;
 function nearestFreeCell(x, z, taken) {
   const gx = snapGrid(x);
   const gz = snapGrid(z);
-  const overs = (cx, cz) => taken.some((p) => Math.abs(p.x - cx) < GRID * 0.9 && Math.abs(p.z - cz) < GRID * 0.9);
+  const overs = (cx, cz) => taken.some((p) => Math.abs(p.x - cx) < CELL && Math.abs(p.z - cz) < CELL);
   if (!overs(gx, gz)) return { x: gx, z: gz };
-  for (let r = 1; r <= 4; r++) {
+  for (let r = 1; r <= 16; r++) {
     for (let dx = -r; dx <= r; dx++) {
       for (let dz = -r; dz <= r; dz++) {
         if (Math.max(Math.abs(dx), Math.abs(dz)) !== r) continue;
@@ -1206,7 +1211,7 @@ export function createScene({ canvas, state, onZoneClick, onStackMove, onNoteMov
       stackMeshes.push(mesh);
       const bubble = makeBubble({ name: entry.name, icon: entry.icon ?? 'doc' });
       bubble.userData.owner = mesh;
-      bubble.position.set(pos.x, DESK.y + DESK.h / 2 + 0.16, pos.z); // hugs the stack
+      bubble.position.set(pos.x, DESK.y + DESK.h / 2 + 0.055, pos.z); // sits right on the pile
       bubbleLayer.add(bubble);
       bubbles.push(bubble);
     };
@@ -1226,7 +1231,7 @@ export function createScene({ canvas, state, onZoneClick, onStackMove, onNoteMov
       stackMeshes.push(box);
       const bubble = makeBubble({ name: entry.name, icon: entry.icon ?? 'doc' });
       bubble.userData.owner = box;
-      bubble.position.set(box.position.x, box.position.y + 0.30, box.position.z - 0.02); // floats over the box
+      bubble.position.set(box.position.x - side * 0.12, box.position.y + 0.37, box.position.z - 0.02); // floats above, toward the window
       bubbleLayer.add(bubble);
       bubbles.push(bubble);
     });
