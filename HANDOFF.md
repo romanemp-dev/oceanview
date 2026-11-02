@@ -76,6 +76,10 @@ _Last updated: 2026-10-22 (Tier 2 shipped; LAN-ready no-store server)._
 - Ray direction fix, single-silhouette bubble contours, bubble seating,
   pano gap closed. ?bubbles=1 QA flag. SW v44.
 
+### 2026-11-02 (round 15)
+- Grid 4x finer (1.75 cm cells), landscape bubbles, bubble seating per
+  user's annotated screenshot. SW v45.
+
 ## 1. What this project is
 
 Oceanview is a **local-first personal desk web app**. Its database is a normal

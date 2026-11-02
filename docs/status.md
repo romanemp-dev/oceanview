@@ -3,6 +3,8 @@ Status
 Phase: 1 — implementation (spec v1.0 frozen)
 
 Done
+- Round 15 (see commit): 4x finer snap grid (1.75 cm), landscape bubble
+  ovals seated on piles / floated above shelf boxes per annotated ref.
 - Round 14 (see commit): rays along light vector (~5 o'clock), bubble
   union contours + text-safe metrics, bubble seating (desk lower / shelf
   higher), pano gap closed; ?bubbles=1 QA hook.
