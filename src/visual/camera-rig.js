@@ -111,8 +111,10 @@ export function createCameraRig({ camera, domElement, config = {} }) {
       camera.position.set(cfg.poseX, cfg.baseY, cfg.baseZ);
     } else {
       const v = Math.min(Math.max((cfg.pitchMid - state.pitch) / (cfg.pitchMid - cfg.pitchDown), 0), 1);
-      const riseY = v * v;
-      const glideZ = 1 - Math.pow(1 - v, 1.4);
+      // Bent the other way: rise EARLY (the camera climbs out of the eye
+      // point first), glide forward LATE (travels over the desk at height).
+      const riseY = 1 - Math.pow(1 - v, 1.4);
+      const glideZ = v * v;
       camera.position.set(
         cfg.poseX,
         cfg.baseY + (cfg.hoverY - cfg.baseY) * riseY,

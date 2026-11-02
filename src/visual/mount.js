@@ -81,6 +81,17 @@ export function mountVisualScene({ canvas, onCaptureClick, onStackMove, onNoteMo
       rig.state.drifting = false;
     }
   }
+  // ?pitch=deg pins the pitch anywhere on the arc (works with or without
+  // ?cam=) — dev aid for sampling the camera path.
+  const pitchParam = (() => {
+    try { return parseFloat(new URLSearchParams(window.location.search).get('pitch')); } catch { return NaN; }
+  })();
+  if (Number.isFinite(pitchParam)) {
+    const pinned = Math.min(Math.max((pitchParam * Math.PI) / 180, -1.52), 0.02);
+    rig.state.targetPitch = pinned;
+    rig.state.pitch = pinned;
+    rig.state.drifting = false;
+  }
 
   // ?picktest=1: 9x6 probe grid. Every 400ms each cell calls
   // sceneHandle.debugPick(NDC) and paints the resolved stack's initial.
