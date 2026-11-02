@@ -3,6 +3,8 @@ Status
 Phase: 1 — implementation (spec v1.0 frozen)
 
 Done
+- Arc v2 (see commit): dead zone 0.26; forward-glide early / rise late
+  (mid = low, window <=25%), desk stop unchanged. Awaiting verdict.
 - Arc camera (see commit): bottom stop hovers over the desk top-down
   (pitch -1.52, eye 2.0/0.28), rise-then-glide arc below rest POV; base
   eye lowered to 1.10. Experiment, awaiting art verdict.

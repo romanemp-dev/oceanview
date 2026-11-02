@@ -91,6 +91,10 @@ _Last updated: 2026-10-22 (Tier 2 shipped; LAN-ready no-store server)._
 - Rig positions camera along an arc below rest POV; bottom stop = hover
   over desk, near-vertical top-down. Base eye 1.10. SW v48.
 
+### 2026-11-02 (arc v2)
+- Dead zone 0.26; arc: forward early, rise late (mid low, window
+  <=25% frame). SW v49.
+
 ## 1. What this project is
 
 Oceanview is a **local-first personal desk web app**. Its database is a normal
