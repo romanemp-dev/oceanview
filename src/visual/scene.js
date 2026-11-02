@@ -458,30 +458,40 @@ function makeStackMesh({ name, count, titles = [], overdue = false, icon = 'doc'
 const A6 = { w: 0.084, h: 0.118 }; // 20% smaller A6
 let curlGeo = null; // shared quarter-cylinder wedge for sheet corner curls
 
-// Invisible snap grid: stacks/notes land on 1.75 cm cells (4x finer than
-// the old 7 cm grid) for granular placement. Occupancy keeps the OLD 6.3 cm
-// radius in absolute terms, so piles still never overlap; the free-cell
-// spiral searches the same 28 cm reach (16 x 1.75 cm).
-const GRID = 0.0175;
-const CELL = GRID; // occupancy radius = one 1.75 cm cell (art direction)
-const snapGrid = (v) => Math.round(v / GRID) * GRID;
-function nearestFreeCell(x, z, taken) {
-  const gx = snapGrid(x);
-  const gz = snapGrid(z);
-  const overs = (cx, cz) => taken.some((p) => Math.abs(p.x - cx) < CELL && Math.abs(p.z - cz) < CELL);
-  if (!overs(gx, gz)) return { x: gx, z: gz };
-  for (let r = 1; r <= 16; r++) {
-    for (let dx = -r; dx <= r; dx++) {
-      for (let dz = -r; dz <= r; dz++) {
-        if (Math.max(Math.abs(dx), Math.abs(dz)) !== r) continue;
-        const cx = snapGrid(gx + dx * GRID);
-        const cz = snapGrid(gz + dz * GRID);
-        if (cx < -0.55 || cx > 0.55 || cz < -0.15 || cz > 0.55) continue;
-        if (!overs(cx, cz)) return { x: cx, z: cz };
+// Free placement (art direction): no snapping at all — an item stays
+// exactly where dropped, UNLESS the drop point falls inside another item's
+// occupancy radius; then it slides just beyond that radius along the
+// approach direction (iterating until fully clear, clamped to the desk).
+const OCCUPANCY = 0.0175; // clear radius around each stack/note, meters
+const OCCUPANCY_PAD = 0.004; // small gap so items don't kiss the boundary
+function resolveFreeSpot(x, z, taken) {
+  let px = x;
+  let pz = z;
+  for (let i = 0; i < 12; i++) {
+    let hit = null;
+    let best = Infinity;
+    for (const p of taken) {
+      const d = Math.hypot(px - p.x, pz - p.z);
+      if (d < OCCUPANCY && d < best) {
+        best = d;
+        hit = p;
       }
     }
+    if (!hit) break;
+    let dx = px - hit.x;
+    let dz = pz - hit.z;
+    if (Math.hypot(dx, dz) < 1e-4) {
+      dx = 1;
+      dz = 0.35; // dropped dead-center: nudge toward desk front-right
+    }
+    const len = Math.hypot(dx, dz);
+    px = hit.x + (dx / len) * (OCCUPANCY + OCCUPANCY_PAD);
+    pz = hit.z + (dz / len) * (OCCUPANCY + OCCUPANCY_PAD);
   }
-  return { x: gx, z: gz };
+  return {
+    x: THREE.MathUtils.clamp(px, -0.55, 0.55),
+    z: THREE.MathUtils.clamp(pz, -0.15, 0.55),
+  };
 }
 
 function a6NoteTexture(text, overdue) {
@@ -1427,7 +1437,7 @@ export function createScene({ canvas, state, onZoneClick, onStackMove, onNoteMov
     curl.rotation.z = curl.userData.baseRotZ + a;
     curl.rotation.x = curl.userData.baseRotX + Math.cos(now * 0.026) * 0.22;
   };
-  const gridOccupancy = () => {
+  const occupancy = () => {
     const taken = [];
     for (const m of stackMeshes) {
       if (m === dragStack) continue;
@@ -1571,15 +1581,15 @@ export function createScene({ canvas, state, onZoneClick, onStackMove, onNoteMov
               moveTween(mesh, new THREE.Vector3(origin.x, settleY, origin.z), { duration: 320, ease: easeOutCubic });
             });
           } else {
-            const cell = nearestFreeCell(dropX, dropZ, gridOccupancy());
-            moveTween(mesh, new THREE.Vector3(cell.x, settleY, cell.z), { duration: 280, ease: easeOutCubic });
-            onNoteMove?.(note, { x: cell.x, z: cell.z });
+            const spot = resolveFreeSpot(dropX, dropZ, occupancy());
+            moveTween(mesh, new THREE.Vector3(spot.x, settleY, spot.z), { duration: 280, ease: easeOutCubic });
+            onNoteMove?.(note, { x: spot.x, z: spot.z });
           }
         } else {
-          const cell = nearestFreeCell(mesh.position.x, mesh.position.z, gridOccupancy());
-          moveTween(mesh, new THREE.Vector3(cell.x, settleY, cell.z), { duration: 280, ease: easeOutCubic });
+          const spot = resolveFreeSpot(mesh.position.x, mesh.position.z, occupancy());
+          moveTween(mesh, new THREE.Vector3(spot.x, settleY, spot.z), { duration: 280, ease: easeOutCubic });
           const entry = mesh.userData.entry;
-          onStackMove?.(entry.path ?? 'inbox', { x: cell.x, z: cell.z });
+          onStackMove?.(entry.path ?? 'inbox', { x: spot.x, z: spot.z });
         }
       } else if (origin) {
         // Threshold never crossed (e.g. blur synthetic) — return home.
