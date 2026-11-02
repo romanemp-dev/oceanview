@@ -3,6 +3,8 @@ Status
 Phase: 1 — implementation (spec v1.0 frozen)
 
 Done
+- Round 15 fix (see commit): bubble offsets moved into userData (the
+  animate loop used to clobber seating per-frame); occupancy cell 1.75 cm.
 - Round 15 (see commit): 4x finer snap grid (1.75 cm), landscape bubble
   ovals seated on piles / floated above shelf boxes per annotated ref.
 - Round 14 (see commit): rays along light vector (~5 o'clock), bubble
