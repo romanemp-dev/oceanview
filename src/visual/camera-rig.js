@@ -11,7 +11,7 @@ export function createCameraRig({ camera, domElement, config = {} }) {
     pitchUp: config.pitchUp ?? 0.02, // rad, looking straight into the window
     pitchRest: config.pitchRest ?? -0.12, // rad, resting POV: window + desk balance
     pitchDown: config.pitchDown ?? -1.52, // rad, near-vertical top-down on the desk
-    deadZone: config.deadZone ?? 0.12,
+    deadZone: config.deadZone ?? 0.26, // large center band: camera holds still
     lerp: config.lerp ?? 0.05,
     driftMs: config.driftMs ?? 1500,
     // Arc pose (meters): eye at rest/above vs the hover point over the desk.
@@ -102,11 +102,14 @@ export function createCameraRig({ camera, domElement, config = {} }) {
     euler.set(state.pitch, state.yaw, 0);
     camera.quaternion.setFromEuler(euler).multiply(baseQuat);
     // Arc position: u = 0 at/above the rest POV (static eye), u = 1 at the
-    // bottom stop (hover over the desk). Rise leads (ease-out), the glide
-    // over the desk trails (ease-in) — the path bows upward like an arc.
+    // bottom stop (hover over the desk). Shape per art direction: the camera
+    // glides FORWARD early (ease-out on Z) while staying LOW, the pitch does
+    // the talking (window shrinks to <=25% by mid-sweep), and the RISE is
+    // back-loaded (ease-in on Y) — only the desk stop gains the full height
+    // that frames the whole desk top-down.
     const u = Math.min(Math.max((cfg.pitchRest - state.pitch) / (cfg.pitchRest - cfg.pitchDown), 0), 1);
-    const riseY = 1 - (1 - u) * (1 - u);
-    const glideZ = u * u;
+    const riseY = u * u;
+    const glideZ = 1 - Math.pow(1 - u, 1.5);
     camera.position.set(
       cfg.poseX,
       cfg.baseY + (cfg.hoverY - cfg.baseY) * riseY,
