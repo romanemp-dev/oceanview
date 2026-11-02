@@ -3,6 +3,9 @@ Status
 Phase: 1 — implementation (spec v1.0 frozen)
 
 Done
+- Arc camera (see commit): bottom stop hovers over the desk top-down
+  (pitch -1.52, eye 2.0/0.28), rise-then-glide arc below rest POV; base
+  eye lowered to 1.10. Experiment, awaiting art verdict.
 - Free placement (see commit): snap grid removed entirely; drop stays
   put unless inside another item's 1.75 cm occupancy radius, then slides
   just beyond it (resolveFreeSpot). Decision superscedes the grid rounds.

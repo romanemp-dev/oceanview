@@ -87,6 +87,10 @@ _Last updated: 2026-10-22 (Tier 2 shipped; LAN-ready no-store server)._
 ### 2026-11-02 (free placement)
 - Grid removed; resolveFreeSpot push-out (D-025). SW v47.
 
+### 2026-11-02 (arc camera)
+- Rig positions camera along an arc below rest POV; bottom stop = hover
+  over desk, near-vertical top-down. Base eye 1.10. SW v48.
+
 ## 1. What this project is
 
 Oceanview is a **local-first personal desk web app**. Its database is a normal
