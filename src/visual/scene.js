@@ -463,7 +463,7 @@ let curlGeo = null; // shared quarter-cylinder wedge for sheet corner curls
 // radius in absolute terms, so piles still never overlap; the free-cell
 // spiral searches the same 28 cm reach (16 x 1.75 cm).
 const GRID = 0.0175;
-const CELL = 0.063; // occupancy radius (absolute, from the 7 cm era)
+const CELL = GRID; // occupancy radius = one 1.75 cm cell (art direction)
 const snapGrid = (v) => Math.round(v / GRID) * GRID;
 function nearestFreeCell(x, z, taken) {
   const gx = snapGrid(x);
@@ -1211,7 +1211,8 @@ export function createScene({ canvas, state, onZoneClick, onStackMove, onNoteMov
       stackMeshes.push(mesh);
       const bubble = makeBubble({ name: entry.name, icon: entry.icon ?? 'doc' });
       bubble.userData.owner = mesh;
-      bubble.position.set(pos.x, DESK.y + DESK.h / 2 + 0.055, pos.z); // sits right on the pile
+      // Relative to the owner (it moves when dragged); animate() applies it.
+      bubble.userData.offset = new THREE.Vector3(0, 0.055, 0); // sits right on the pile
       bubbleLayer.add(bubble);
       bubbles.push(bubble);
     };
@@ -1231,7 +1232,7 @@ export function createScene({ canvas, state, onZoneClick, onStackMove, onNoteMov
       stackMeshes.push(box);
       const bubble = makeBubble({ name: entry.name, icon: entry.icon ?? 'doc' });
       bubble.userData.owner = box;
-      bubble.position.set(box.position.x - side * 0.12, box.position.y + 0.37, box.position.z - 0.02); // floats above, toward the window
+      bubble.userData.offset = new THREE.Vector3(-side * 0.12, 0.37, -0.02); // floats above, toward the window
       bubbleLayer.add(bubble);
       bubbles.push(bubble);
     });
@@ -1627,8 +1628,15 @@ export function createScene({ canvas, state, onZoneClick, onStackMove, onNoteMov
         b.userData.tick(now);
         const owner = b.userData.owner;
         if (owner?.parent) {
-          const shelf = !owner.userData?.entry || Math.abs(owner.position.x) > 0.7;
-          b.position.set(owner.position.x, owner.position.y + (shelf ? 0.16 : 0.21), owner.position.z - (shelf ? 0.02 : 0));
+          // Follow the owner with its per-bubble offset (set at build time;
+          // the old hardcoded +0.21/+0.16 here used to clobber it per-frame).
+          const off = b.userData.offset;
+          if (off) {
+            b.position.set(owner.position.x + off.x, owner.position.y + off.y, owner.position.z + off.z);
+          } else {
+            const shelf = !owner.userData?.entry || Math.abs(owner.position.x) > 0.7;
+            b.position.set(owner.position.x, owner.position.y + (shelf ? 0.16 : 0.21), owner.position.z - (shelf ? 0.02 : 0));
+          }
         }
       }
       if (dragStack) flutterCurl(now);
