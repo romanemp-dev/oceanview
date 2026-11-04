@@ -3,6 +3,9 @@ Status
 Phase: 1 — implementation (spec v1.0 frozen)
 
 Done
+- Art direction 4 (see commit): phase 1 ends on the notes focus
+  (piecewise input map, no empty-desk dwell), calmer pitch follow,
+  bubbles seated on pile/box top edges.
 - Arc v4 (see commit): phase 2 bent the other way (rise early, glide
   late); ?pitch=deg dev pin works without ?cam=.
 - Arc v3 (see commit): phase 1 (rest->mid) pins the eye (rotation only,

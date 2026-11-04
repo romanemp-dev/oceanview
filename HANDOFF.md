@@ -102,6 +102,10 @@ _Last updated: 2026-10-22 (Tier 2 shipped; LAN-ready no-store server)._
 ### 2026-11-03 (arc v4)
 - Phase 2 inverted: rise early / glide late. ?pitch=deg dev pin. SW v52.
 
+### 2026-11-04 (art direction 4)
+- Pitch path focuses on notes (no empty-desk dwell), pitchLerp 0.035,
+  bubbles on top edges. SW v53.
+
 ## 1. What this project is
 
 Oceanview is a **local-first personal desk web app**. Its database is a normal
