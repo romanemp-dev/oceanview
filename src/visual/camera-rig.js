@@ -11,9 +11,10 @@ export function createCameraRig({ camera, domElement, config = {} }) {
     pitchUp: config.pitchUp ?? 0.02, // rad, looking straight into the window
     pitchRest: config.pitchRest ?? -0.12, // rad, resting POV: window + desk balance
     pitchDown: config.pitchDown ?? -1.52, // rad, near-vertical top-down on the desk
-    pitchMid: config.pitchMid ?? -0.82, // rad, phase split: rotation-only until here
+    pitchMid: config.pitchMid ?? -0.44, // rad, phase split: eye pinned until the view CENTERS on the notes area
     deadZone: config.deadZone ?? 0.26, // large center band: camera holds still
     lerp: config.lerp ?? 0.05,
+    pitchLerp: config.pitchLerp ?? 0.035, // vertical follow runs calmer than yaw
     driftMs: config.driftMs ?? 1500,
     // Arc pose (meters): eye at rest/above vs the hover point over the desk.
     poseX: config.poseX ?? 0,
@@ -77,9 +78,23 @@ export function createCameraRig({ camera, domElement, config = {} }) {
     // Screen up (ny < 0) → look up at the window; down → look down at the desk.
     // The screen center rests at the POV composition (window top + desk bottom).
     const nyDead = dead(ny);
-    state.targetPitch = nyDead < 0
-      ? cfg.pitchRest + -nyDead * (cfg.pitchUp - cfg.pitchRest)
-      : cfg.pitchRest - nyDead * (cfg.pitchRest - cfg.pitchDown);
+    if (nyDead < 0) {
+      state.targetPitch = cfg.pitchRest + -nyDead * (cfg.pitchUp - cfg.pitchRest);
+    } else {
+      // Piecewise vertical map (art direction): a short fast band swings the
+      // view from the window straight onto the notes area — the camera never
+      // dwells focused on the empty front strip — then the long dive to the
+      // top-down hover runs much more gently.
+      const FAST = 0.15; // input share spent on rest -> notes focus
+      if (nyDead <= FAST) {
+        const t = nyDead / FAST;
+        const e = t * t * (3 - 2 * t); // smoothstep: settles exactly on notes
+        state.targetPitch = cfg.pitchRest + (cfg.pitchMid - cfg.pitchRest) * e;
+      } else {
+        const t2 = (nyDead - FAST) / (1 - FAST);
+        state.targetPitch = cfg.pitchMid + (cfg.pitchDown - cfg.pitchMid) * t2;
+      }
+    }
   }
 
   function startDrift() {
@@ -99,14 +114,14 @@ export function createCameraRig({ camera, domElement, config = {} }) {
       if (t >= 1) state.drifting = false;
     }
     state.yaw += (state.targetYaw - state.yaw) * cfg.lerp;
-    state.pitch += (state.targetPitch - state.pitch) * cfg.lerp;
+    state.pitch += (state.targetPitch - state.pitch) * cfg.pitchLerp;
     euler.set(state.pitch, state.yaw, 0);
     camera.quaternion.setFromEuler(euler).multiply(baseQuat);
-    // Two-phase arc per art direction. Phase 1 (rest -> mid): the eye is
-    // PINNED at the rest position — the pitch alone does the talking, the
-    // camera never dives onto the desk. Phase 2 (mid -> desk): only now the
-    // camera glides forward over the desk (ease-out on Z) and rises to the
-    // hover height late (ease-in on Y), framing the whole desk top-down.
+    // Two-phase arc per art direction. Phase 1 (rest -> mid = notes focus):
+    // the eye is PINNED at the rest position — the pitch alone does the
+    // talking, ending centered on the notes area. Phase 2 (mid -> desk): the
+    // camera rises early and glides forward late, keeping the view on the
+    // desk content while framing the whole desk top-down.
     if (state.pitch >= cfg.pitchMid) {
       camera.position.set(cfg.poseX, cfg.baseY, cfg.baseZ);
     } else {

@@ -1222,7 +1222,7 @@ export function createScene({ canvas, state, onZoneClick, onStackMove, onNoteMov
       const bubble = makeBubble({ name: entry.name, icon: entry.icon ?? 'doc' });
       bubble.userData.owner = mesh;
       // Relative to the owner (it moves when dragged); animate() applies it.
-      bubble.userData.offset = new THREE.Vector3(0, 0.055, 0); // sits right on the pile
+      bubble.userData.offset = new THREE.Vector3(0, 0.06, -0.075); // hangs over the pile's top (far) edge
       bubbleLayer.add(bubble);
       bubbles.push(bubble);
     };
@@ -1242,7 +1242,7 @@ export function createScene({ canvas, state, onZoneClick, onStackMove, onNoteMov
       stackMeshes.push(box);
       const bubble = makeBubble({ name: entry.name, icon: entry.icon ?? 'doc' });
       bubble.userData.owner = box;
-      bubble.userData.offset = new THREE.Vector3(-side * 0.12, 0.37, -0.02); // floats above, toward the window
+      bubble.userData.offset = new THREE.Vector3(0, 0.22, -0.02); // hovers just over the box's top edge
       bubbleLayer.add(bubble);
       bubbles.push(bubble);
     });

@@ -67,7 +67,7 @@ export function mountVisualScene({ canvas, onCaptureClick, onStackMove, onNoteMo
   })();
   if (camParam) {
     rig.state.drifting = false;
-    const poses = { window: 0.02, rest: -0.12, mid: -0.82, desk: -1.52 };
+    const poses = { window: 0.02, rest: -0.12, mid: -0.44, desk: -1.52 };
     if (camParam in poses) {
       rig.state.targetPitch = poses[camParam];
       rig.state.pitch = poses[camParam];
